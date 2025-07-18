@@ -2,7 +2,7 @@ import json
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_community.embeddings import OpenAIEmbeddings
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import JSONLoader
 from langchain_community.chat_models import ChatOpenAI
@@ -45,7 +45,7 @@ def create_vector_store(data):
     splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=50)
     split_docs = splitter.split_documents(docs)
     embeddings = OpenAIEmbeddings()
-    db = FAISS.from_documents(split_docs, embeddings)
+    db = Chroma.from_documents(split_docs, embeddings)
     return db
 
 # Step 3: Create QA Chain
