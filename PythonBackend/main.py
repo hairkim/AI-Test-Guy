@@ -1,10 +1,14 @@
 import json
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import JSONLoader
 from langchain_community.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
+
+app = FastAPI()
 
 # Load your OpenAI key
 import os
@@ -15,11 +19,12 @@ load_dotenv()  # Load from .env into environment
 openai_key = os.getenv("OPENAI_API_KEY")
 os.environ["OPENAI_API_KEY"] = openai_key
 
-try:
-    models = openai.models.list()
-    print("✅ API key is valid!")
-except Exception as e:
-    print("❌ API key error:", e)
+#this was test to see if the api key was valid or not
+# try:
+#     models = openai.models.list()
+#     print("✅ API key is valid!")
+# except Exception as e:
+#     print("❌ API key error:", e)
 
 # Step 1: Load and prepare dataset
 def load_dataset(filepath):
