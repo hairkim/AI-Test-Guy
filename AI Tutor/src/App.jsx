@@ -3,31 +3,59 @@ import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
 
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [question, setQuestion] = useState("");
+  const [error, setError] = useState("");
+  const [answer, setAnswer] = useState("");
+
+  const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
+
+  const submitPrompt = async () => {
+    if(!question) {
+      setError("Please enter a question into the field")
+      return
+    }
+
+    //move onto api stuff
+    try {
+      const res = await fetch(`${BACKEND_URL}/ask`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ question }), // sending { "question": "..." }
+      });
+  
+      const data = await res.json();
+  
+      if (res.ok) {
+        setAnswer(data.answer);
+        setError(""); // clear error
+      } else {
+        setError("Something went wrong.");
+      }
+    } catch (err) {
+      setError("Server error: " + err.message);
+    }
+  }
 
   return (
     <>
       <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+        Ask me a question!
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <form onSubmit={(e) => { e.preventDefault(); submitPrompt(); }}>
+        <input
+          className="prompt"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="Type your question"
+        />
+        <button type="submit">Submit</button>
+      </form>
+      <div className="error" style={{ display: error ? "block" : "none" }}>{error}</div>
+      <div>{answer}</div>
     </>
   )
 }
