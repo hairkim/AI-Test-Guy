@@ -21,8 +21,15 @@ def load_dataset(path):
         for d in data
     ]
 
-docs = load_dataset("sat_math_questions.jsonl")
+
+#TODO: Make this so that it loads embeddings only when submission and make function that creates vectorstore
+#using the subject that the query uses (maybe use chat for that or make like a button to change sections)
 embeddings = OpenAIEmbeddings(openai_api_key=openai_key)
-vectorstore = Chroma.from_documents(docs, embeddings)
+vectorstore = Chroma(
+    collection_name="sat_math",
+    persist_directory="../vectorstores/sat_math",
+    embedding_function=embeddings
+)
+
 retriever = vectorstore.as_retriever()
 qa_chain = RetrievalQA.from_chain_type(llm=ChatOpenAI(), retriever=retriever)

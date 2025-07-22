@@ -2,6 +2,9 @@ from io import BytesIO
 import pdfplumber
 import re
 import json
+from pdf2image import convert_from_bytes
+import base64
+from io import BytesIO
 
 # Step 1: Extract text from PDF bytes (not file path)
 def extract_text_from_bytes(pdf_bytes):
@@ -49,3 +52,13 @@ def parse_pdf_to_json(pdf_bytes, output_path):
             f.write(json.dumps(q) + "\n")
 
     print(f"✅ Saved to {output_path}")
+
+
+def pdf_to_images(pdf_bytes):
+    images = convert_from_bytes(pdf_bytes)
+    return images  # each image is a PIL.Image
+
+def image_to_base64(pil_img):
+    buffered = BytesIO()
+    pil_img.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
