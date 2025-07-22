@@ -1,3 +1,27 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+venv/
+ENV/
+env/
+.venv/
+
+# Environment variables
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints
+
+vectorstores/
+
+
 # Logs
 logs
 *.log
@@ -22,6 +46,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-
-.env
