@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 openai_key = os.getenv("OPENAI_KEY")
+persist_directory = os.getenv("CHROMA_PERSIST_DIR")
 
 def load_dataset(path):
     with open(path, "r") as f:
@@ -27,7 +28,7 @@ def load_dataset(path):
 embeddings = OpenAIEmbeddings(openai_api_key=openai_key)
 vectorstore = Chroma(
     collection_name="sat_math",
-    persist_directory="../vectorstores/sat_math",
+    persist_directory=persist_directory,
     embedding_function=embeddings
 )
 
