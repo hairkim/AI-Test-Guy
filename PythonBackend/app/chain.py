@@ -1,36 +1,36 @@
+from langchain.vectorstores.pgvector import PGVector
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
-from langchain_community.embeddings import OpenAIEmbeddings
-from langchain_community.vectorstores import Chroma
-from langchain_community.chat_models import ChatOpenAI
 from langchain.schema import Document
-import json
-import os
+import json, os
 from dotenv import load_dotenv
+
 
 load_dotenv()
 openai_key = os.getenv("OPENAI_KEY")
-persist_directory = os.getenv("CHROMA_PERSIST_DIR")
+vector_url = os.getenv("DATABASE_URL")
+retriever_cache = {}
 
-def load_dataset(path):
-    with open(path, "r") as f:
-        data = [json.loads(line) for line in f]
-    return [
-        Document(
-            page_content=f"Question: {d['question']}\nChoices: {d['choices']}\nAnswer: {d['answer']}\nExplanation: {d['explanation']}",
-            metadata={"subject": "SAT Math"},
+
+def get_retriever_for_collection(collection):
+    if collection not in retriever_cache:
+        vectorstore = PGVector(
+            connection_string=vector_url,
+            collection_name=collection,
+            embedding_function=OpenAIEmbeddings(openai_api_key=openai_key)
         )
-        for d in data
-    ]
+        retriever_cache[collection] = vectorstore.as_retriever()
+    return retriever_cache[collection]
 
 
-#TODO: Make this so that it loads embeddings only when submission and make function that creates vectorstore
-#using the subject that the query uses (maybe use chat for that or make like a button to change sections)
-embeddings = OpenAIEmbeddings(openai_api_key=openai_key)
-vectorstore = Chroma(
-    collection_name="sat_math",
-    persist_directory=persist_directory,
-    embedding_function=embeddings
-)
+# embeddings = OpenAIEmbeddings(openai_api_key=openai_key)
+# vectorstore = PGVector(
+#     connection_string=pgvector_url,
+#     embedding_function=embeddings,
+#     collection_name=collection_name
+# )
 
-retriever = vectorstore.as_retriever()
-qa_chain = RetrievalQA.from_chain_type(llm=ChatOpenAI(), retriever=retriever)
+
+# retriever = vectorstore.as_retriever()
+# qa_chain = RetrievalQA.from_chain_type(llm=ChatOpenAI(), retriever=retriever)

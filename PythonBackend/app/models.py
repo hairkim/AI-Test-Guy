@@ -2,6 +2,9 @@ from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, ARRAY
 from sqlalchemy.orm import relationship
 from .database import Base
+from pgvector.sqlalchemy import Vector
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 
 class Query(BaseModel):
     question: str
@@ -47,3 +50,12 @@ class Solution(Base):
     step_text = Column(Text)
 
     question = relationship("Question", back_populates="solutions")
+
+class QuestionEmbedding(Base):
+    __tablename__ = "question_embeddings"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"))
+    text = Column(Text)
+    embedding = Column(Vector(1536))  # OpenAI embedding size
+
+    question = relationship("Question", backref="embedding")

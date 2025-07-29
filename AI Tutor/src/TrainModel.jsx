@@ -8,6 +8,7 @@ export default function TrainModel() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_PORT
 
     const handleSubmit = async (e) => {
+        setResponse("");
         e.preventDefault();
         if (!pdf || !examName.trim()) {
           alert("Please select a PDF file and enter an exam name.");
