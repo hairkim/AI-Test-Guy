@@ -211,3 +211,32 @@ def process_pdf(pdf_bytes: bytes, exam_name: str):
         if questions:
             save_to_db(db, exam_name, section, questions, img)
     db.close()
+
+
+def process_image_to_question(base64_img: str) -> str:
+    prompt = """
+        You are a math assistant. Given the image of an SAT math question, extract only the question text (not the answer choices), and rewrite it using LaTeX formatting **only** for mathematical expressions.
+
+        - Keep the natural language intact.
+        - Wrap all math symbols, expressions, variables, and numbers in dollar signs: `$...$`.
+        - Do NOT include answer choices or explanations.
+        - Return only the rewritten question text in one paragraph — no extra commentary.
+    """
+
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_img}"}}
+            ]
+        }
+    ]
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        max_tokens=500
+    )
+
+    return response.choices[0].message.content.strip()

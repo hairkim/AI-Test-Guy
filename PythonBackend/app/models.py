@@ -1,13 +1,15 @@
 from pydantic import BaseModel
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, ARRAY
+from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from .database import Base
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
+from typing import Optional
 
 class Query(BaseModel):
     question: str
+    image: Optional[str] = None
 
 class Exam(Base):
     __tablename__ = "exams"
@@ -33,7 +35,6 @@ class Question(Base):
     id = Column(Integer, primary_key=True)
     section_id = Column(Integer, ForeignKey("sections.id"))
     question_text = Column(Text, nullable=False)
-    choices = Column(ARRAY(Text))  # ["A. ...", "B. ...", ...]
     answer = Column(String)
     explanation = Column(Text)
     image = Column(Text)  # base64 string or URL
@@ -51,11 +52,13 @@ class Solution(Base):
 
     question = relationship("Question", back_populates="solutions")
 
+
 class QuestionEmbedding(Base):
     __tablename__ = "question_embeddings"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"))
     text = Column(Text)
-    embedding = Column(Vector(1536))  # OpenAI embedding size
+    # embedding = Column(Vector(1536))  # OpenAI embedding size
+    embedding = Column(Vector(384))
 
     question = relationship("Question", backref="embedding")

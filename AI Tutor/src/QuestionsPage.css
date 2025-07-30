@@ -1,3 +1,22 @@
 .error {
     color: red;
   }
+
+
+.prompt {
+  width: 500px;
+  height: 300px;
+  overflow: wrap;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2rem;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+}

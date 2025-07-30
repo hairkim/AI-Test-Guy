@@ -1,4 +1,7 @@
 import { useState, React } from 'react';
+import { InlineMath } from 'react-katex';
+import './QuestionsPage.css'
+import DragAndDrop from './DragAndDrop.jsx'
 
 export default function QuestionsPage() {
     const [question, setQuestion] = useState("");
@@ -27,6 +30,7 @@ export default function QuestionsPage() {
     
         if (res.ok) {
           setAnswer(data.answer);
+          console.log(data.answer);
           setError(""); // clear error
         } else {
           setError("Something went wrong.");
@@ -37,12 +41,13 @@ export default function QuestionsPage() {
     }
   
     return (
-      <>
-        <div>
+      <div className='container'>
+        <h2>
           Ask me a question!
-        </div>
-        <form onSubmit={(e) => { e.preventDefault(); submitPrompt(); }}>
-          <input
+        </h2>
+        <DragAndDrop />
+        <form className='form' onSubmit={(e) => { e.preventDefault(); submitPrompt(); }}>
+          <textarea
             className="prompt"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
@@ -51,7 +56,20 @@ export default function QuestionsPage() {
           <button type="submit">Submit</button>
         </form>
         <div className="error" style={{ display: error ? "block" : "none" }}>{error}</div>
-        <div>{answer}</div>
-      </>
+        {answer && (
+          <div>
+            <h3>Answer:</h3>
+            <p style={{ fontweight: 'bold' }}>
+              {answer.split(/(\$[^$]*\$)/g).map((part, i) =>
+                part.startsWith('$') && part.endsWith('$') ? (
+                  <InlineMath key={i} math={part.slice(1, -1)} />
+                ) : (
+                  <span key={i}>{part}</span>
+                )
+              )}
+            </p>
+          </div>
+        )}
+      </div>
     )
 }
