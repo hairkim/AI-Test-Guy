@@ -1,6 +1,7 @@
 from langchain.vectorstores.pgvector import PGVector
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
 from langchain.schema import Document
 import json, os
@@ -12,13 +13,30 @@ openai_key = os.getenv("OPENAI_KEY")
 vector_url = os.getenv("DATABASE_URL")
 retriever_cache = {}
 
+#this is the openAI version
+# def get_retriever_for_collection(collection):
+#     if collection not in retriever_cache:
+#         vectorstore = PGVector(
+#             connection_string=vector_url,
+#             collection_name=collection,
+#             embedding_function=OpenAIEmbeddings(openai_api_key=openai_key)
+#         )
+#         retriever_cache[collection] = vectorstore.as_retriever()
+#     return retriever_cache[collection]
+
+#this is using sentence transformer embedding
+# Initialize HuggingFace embedding
+
+embedding_model = HuggingFaceEmbeddings(
+    model_name='all-MiniLM-L6-v2' 
+)
 
 def get_retriever_for_collection(collection):
     if collection not in retriever_cache:
         vectorstore = PGVector(
             connection_string=vector_url,
             collection_name=collection,
-            embedding_function=OpenAIEmbeddings(openai_api_key=openai_key)
+            embedding_function=embedding_model
         )
         retriever_cache[collection] = vectorstore.as_retriever()
     return retriever_cache[collection]

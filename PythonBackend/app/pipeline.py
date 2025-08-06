@@ -1,7 +1,7 @@
 from openai import OpenAI
 from app.extract import pdf_to_images, image_to_base64
 from app.database import SessionLocal
-from app.models import Exam, Section, Question, Solution
+from app.models import Exam, Section, Question, Solution, Query
 import os, json, re, base64, uuid
 from sqlalchemy.orm import Session
 from supabase import create_client
@@ -211,3 +211,94 @@ def process_pdf(pdf_bytes: bytes, exam_name: str):
         if questions:
             save_to_db(db, exam_name, section, questions, img)
     db.close()
+
+
+def process_image_to_question(base64_img: str) -> str:
+    prompt = """
+        You are a math assistant. Given the image of an SAT math question, extract only the question text (not the answer choices), and rewrite it using LaTeX formatting **only** for mathematical expressions.
+
+        - Keep the natural language intact.
+        - Wrap all math symbols, expressions, variables, and numbers in dollar signs: `$...$`.
+        - Do NOT include answer choices or explanations.
+        - Return only the rewritten question text in one paragraph — no extra commentary.
+    """
+
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_img}"}}
+            ]
+        }
+    ]
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        max_tokens=500
+    )
+
+    return response.choices[0].message.content.strip()
+
+def process_image_query_with_gpt(query: Query) -> dict:
+    if not query.image:
+        return {
+            "question": query.question,
+            "usage": "question",
+            "supporting_explanation": None,
+            "image_url": None
+        }
+
+    vision_prompt = (
+        "You will be given a user input and an image.\n"
+        "Determine whether the image itself is a standalone math question, or if it is just a supporting image that gives context.\n\n"
+        f"User input:\n{query.question or '(none)'}\n\n"
+        "If the image is a standalone question, extract and return the question as clearly as possible.\n"
+        "If it’s a supporting image, explain what it shows in 1-2 sentences so it can be used as context."
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4-vision-preview",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": vision_prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{query.image}"}}
+                    ]
+                }
+            ],
+            max_tokens=1000,
+        )
+
+        output = response.choices[0].message.content.strip()
+
+    except Exception as e:
+        print("GPT-4 Vision error:", e)
+        return {
+            "question": query.question,
+            "usage": "question",
+            "supporting_explanation": None,
+            "image_url": None
+        }
+
+    # Heuristic to detect if the output is a math question
+    is_question = any(sym in output for sym in ["=", "\\frac", "solve", "find", "$", "?" ]) or output.lower().strip().endswith("?")
+
+    if is_question:
+        return {
+            "question": output,
+            "usage": "question",
+            "supporting_explanation": None,
+            "image_url": None
+        }
+    else:
+        image_url = upload_image_to_supabase(query.image)
+        return {
+            "question": query.question,
+            "usage": "support",
+            "supporting_explanation": output,
+            "image_url": image_url
+        }
