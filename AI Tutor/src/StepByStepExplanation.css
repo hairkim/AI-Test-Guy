@@ -1,0 +1,238 @@
+.step-explanation-container {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Solution Section */
+.solution-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.solution-header h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.3em;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.solution-content {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 1.2em;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Explanation Section */
+.explanation-section {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.explanation-header {
+  background: #f8f9fa;
+  padding: 20px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.explanation-header h3 {
+  margin: 0;
+  font-size: 1.3em;
+  font-weight: 600;
+  color: #2c3e50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.control-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.expand-all {
+  background: #28a745;
+  color: white;
+}
+
+.expand-all:hover:not(:disabled) {
+  background: #218838;
+}
+
+.collapse-all {
+  background: #6c757d;
+  color: white;
+}
+
+.collapse-all:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+.control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Steps Container */
+.steps-container {
+  padding: 0;
+}
+
+.step-item {
+  border-bottom: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.step-item:last-child {
+  border-bottom: none;
+}
+
+.step-item.expanded {
+  background: #f8f9ff;
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  gap: 16px;
+}
+
+.step-header:hover {
+  background: #f1f3f4;
+}
+
+.step-item.expanded .step-header {
+  background: #e3f2fd;
+  border-bottom: 1px solid #bbdefb;
+}
+
+.step-number {
+  background: linear-gradient(135deg, #4285f4, #34a853);
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9em;
+  flex-shrink: 0;
+}
+
+.step-preview {
+  flex: 1;
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 1em;
+  line-height: 1.4;
+}
+
+.step-toggle {
+  color: #6c757d;
+  font-size: 1.2em;
+  transition: transform 0.2s ease;
+}
+
+.step-item.expanded .step-toggle {
+  transform: rotate(0deg);
+}
+
+.step-content {
+  padding: 0 20px 20px 68px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+  }
+}
+
+.step-explanation {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  border-left: 4px solid #4285f4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  line-height: 1.6;
+  font-size: 1em;
+  color: black;
+}
+
+.step-explanation strong {
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+/* LaTeX Math Styling */
+.step-explanation .katex {
+  font-size: 1.1em;
+}
+
+.solution-content .katex {
+  font-size: 1.3em;
+  color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .step-explanation-container {
+    margin: 16px;
+    max-width: none;
+  }
+  
+  .explanation-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .step-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .step-content {
+    padding: 0 16px 16px 52px;
+  }
+  
+  .solution-section,
+  .explanation-header {
+    padding: 16px;
+  }
+}
