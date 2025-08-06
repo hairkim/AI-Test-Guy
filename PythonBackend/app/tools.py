@@ -7,6 +7,8 @@ from typing import Optional, Dict, Any
 import re, json
 from langchain.llms.base import LLM
 from typing import Type
+import sympy as sp
+from sympy import symbols, Eq, solve, simplify, latex
 
 class OpenAIWrapper:
     """Wrapper to make OpenAI client compatible with LangChain tools"""

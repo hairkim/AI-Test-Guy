@@ -25,6 +25,7 @@ def ask_question(query: Query):
         
         # Step 2: Classify and get retriever
         collection = classify_question_to_collection(original_question)
+        print("Collection name used:", collection)
         retriever = get_retriever_for_collection(collection)
         
         # Step 3: Initialize LLM wrapper and tools
@@ -69,7 +70,7 @@ def ask_question(query: Query):
         
         # Step 6: Get context
         try:
-            docs_context = retriever.get_relevant_documents(latex_question)
+            docs_context = retriever.invoke(original_question)
             docs_text = "\n\n".join([doc.page_content for doc in docs_context[:2]])  # Limit to 2 docs
             
             # Add image context if available
