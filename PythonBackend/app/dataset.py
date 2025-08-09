@@ -4,21 +4,66 @@ from app.chain import get_vectorstore
 from openai import OpenAI
 import os, uuid, time
 from datasets import load_dataset
-from sentence_transformers import SentenceTransformer
+
+import torch
+from transformers import AutoTokenizer, AutoModel
+
+MODEL_ID = "tbs17/MathBERT-custom"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+class HFMeanPoolEmbedder:
+    def __init__(self, model_id: str = MODEL_ID, device: str = DEVICE):
+        self.tokenizer = AutoTokenizer.from_pretrained(model_id, use_fast=True)
+        self.model = AutoModel.from_pretrained(model_id)
+        self.model.to(device)
+        self.device = device
+
+    @torch.no_grad()
+    def encode(self, texts, batch_size: int = 16, max_length: int = 512):
+        # accepts str or list[str]
+        single = isinstance(texts, str)
+        if single:
+            texts = [texts]
+
+        embs = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i+batch_size]
+            inputs = self.tokenizer(
+                batch, padding=True, truncation=True, max_length=max_length, return_tensors="pt"
+            ).to(self.device)
+
+            outputs = self.model(**inputs)                 # last_hidden_state: [B, T, H]
+            last_hidden = outputs.last_hidden_state
+            mask = inputs["attention_mask"].unsqueeze(-1).float()  # [B, T, 1]
+
+            # mean pooling over tokens actually present
+            summed = (last_hidden * mask).sum(dim=1)       # [B, H]
+            counts = mask.sum(dim=1).clamp(min=1e-9)       # [B, 1]
+            mean_pooled = summed / counts
+
+            # L2-normalize for cosine similarity vector stores (recommended)
+            mean_pooled = torch.nn.functional.normalize(mean_pooled, p=2, dim=1)
+
+            embs.append(mean_pooled.cpu())
+
+        embs = torch.cat(embs, dim=0)                      # [N, H]
+        return embs[0].tolist() if single else [e.tolist() for e in embs]
 
 #for embeddings
-model = SentenceTransformer('all-MiniLM-L6-v2')
 dataset = load_dataset("ndavidson/sat-math-chain-of-thought")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 db = SessionLocal()
 
+embedder = HFMeanPoolEmbedder(MODEL_ID)
+
 def createEmbedding(question: Question) -> QuestionEmbedding:
-    embedding_vector = model.encode(question.question_text).tolist()
+    embedding_vector = embedder.encode(question.question_text)  # -> List[float]
     return QuestionEmbedding(
         question_id=question.id,
         text=question.question_text,
         embedding=embedding_vector
     )
+
 
 def insert_from_dataset():
     start = time.time()
