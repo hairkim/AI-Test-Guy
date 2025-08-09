@@ -42,30 +42,40 @@ const StepByStepExplanation = ({ solution, explanationSteps }) => {
   };
 
   const parseStepContent = (step) => {
-    // Extract step number and content
+    // Handle new object structure with step and method properties
+    if (typeof step === 'object' && step.step) {
+      // Extract step number and content from the step property
+      const match = step.step.match(/^(\d+)\. (.*)$/s);
+      if (match) {
+        return {
+          number: match[1],
+          content: match[2],
+          method: step.method || ''
+        };
+      }
+      return {
+        number: '',
+        content: step.step,
+        method: step.method || ''
+      };
+    }
+    
+    // Fallback for old string format (backward compatibility)
     const match = step.match(/^(\d+)\. (.*)$/s);
     if (match) {
       return {
         number: match[1],
-        content: match[2]
+        content: match[2],
+        method: ''
       };
     }
     return {
       number: '',
-      content: step
+      content: step,
+      method: ''
     };
   };
 
-  const getStepPreview = (content) => {
-    // Extract the bold title if it exists (between **text**)
-    const boldMatch = content.match(/\*\*(.*?)\*\*/);
-    if (boldMatch) {
-      return boldMatch[1];
-    }
-    // Otherwise, return first 60 characters
-    // return content.substring(0, 60) + (content.length > 60 ? '...' : '');
-    return renderMathText(content);
-  };
 
   if (!solution && (!explanationSteps || explanationSteps.length === 0)) {
     return null;
@@ -123,7 +133,7 @@ const StepByStepExplanation = ({ solution, explanationSteps }) => {
                       {number || (index + 1)}
                     </div>
                     <div className="step-preview">
-                      {getStepPreview(content)}
+                      <b>{step.method}</b>
                     </div>
                     <div className="step-toggle">
                       {isExpanded ? '▼' : '▶'}

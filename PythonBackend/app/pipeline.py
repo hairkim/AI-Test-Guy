@@ -1,11 +1,12 @@
 from openai import OpenAI
 from app.extract import pdf_to_images, image_to_base64
 from app.database import SessionLocal
-from app.models import Exam, Section, Question, Solution, Query
+from app.models import Exam, Section, Question, Solution, EnhancedQuery
 import os, json, re, base64, uuid
 from sqlalchemy.orm import Session
 from supabase import create_client
 from app.models import QuestionEmbedding
+from typing import Optional
 
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -86,21 +87,6 @@ def embed_and_answer(session: Session, question_text: str) -> dict:
             return {}
     return {"answer": "", "explanation": "", "steps": []}
 
-
-def upload_image_to_supabase(base64_str: str) -> str:
-    image_bytes = base64.b64decode(base64_str)
-    filename = f"question_{uuid.uuid4().hex}.png"
-    filepath = f"question-images/{filename}"
-
-    res = supabase.storage.from_("question-images").upload(
-        filepath,
-        image_bytes,
-        {"content-type": "image/png"}
-    )
-    if hasattr(res, 'data') and res.data:
-        return f"{SUPABASE_URL}/storage/v1/object/public/{filepath}"
-    print("Upload failed:", res)
-    return ""
 
 def extract_questions(base64_img: str) -> list:
     prompt = (
@@ -241,64 +227,225 @@ def process_image_to_question(base64_img: str) -> str:
 
     return response.choices[0].message.content.strip()
 
-def process_image_query_with_gpt(query: Query) -> dict:
+# Also update your process_image_query_with_gpt function signature
+def process_image_query_with_gpt(query: EnhancedQuery) -> dict:  
+    """
+    Process image query with improved vision capabilities and better question detection
+    Note: Now works with EnhancedQuery which allows question to be None
+    """
+    if query.image:
+        print("iamge was found yes lets goooo")
     if not query.image:
-        return {
-            "question": query.question,
-            "usage": "question",
-            "supporting_explanation": None,
-            "image_url": None
-        }
+        # Handle case where only question text is provided
+        if query.question:
+            return {
+                "question": query.question,
+                "usage": "question",
+                "supporting_explanation": None,
+                "image_url": None
+            }
+        else:
+            # This shouldn't happen due to validator, but just in case
+            return {
+                "question": "No question or image provided",
+                "usage": "error",
+                "supporting_explanation": None,
+                "image_url": None
+            }
 
-    vision_prompt = (
-        "You will be given a user input and an image.\n"
-        "Determine whether the image itself is a standalone math question, or if it is just a supporting image that gives context.\n\n"
-        f"User input:\n{query.question or '(none)'}\n\n"
-        "If the image is a standalone question, extract and return the question as clearly as possible.\n"
-        "If it’s a supporting image, explain what it shows in 1-2 sentences so it can be used as context."
-    )
+    # Rest of the function remains the same...
+    vision_prompt = """
+    You are analyzing an image that may contain a math question or supporting material.
+    
+    User input: "{user_input}"
+    
+    Your task:
+    1. If the image contains a complete math question (equations, word problems, diagrams with questions), respond with:
+       "QUESTION: [extract the complete question text here]"
+    
+    2. If the image contains supporting material (diagrams, graphs, charts, figures) that helps with solving a question, respond with:
+       "SUPPORT: [describe what the image shows and how it relates to math problem solving]"
+    
+    3. If the image is unclear or contains no mathematical content, respond with:
+       "UNCLEAR: [brief description of what you see]"
+    
+    Be precise and extract mathematical notation carefully. Include all variables, equations, and constraints.
+    """.format(user_input=query.question or "(no text provided)")
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4-vision-preview",
+            model="gpt-4o",
             messages=[
                 {
-                    "role": "user",
+                    "role": "user", 
                     "content": [
                         {"type": "text", "text": vision_prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{query.image}"}}
+                        {
+                            "type": "image_url", 
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{query.image}",
+                                "detail": "high"
+                            }
+                        }
                     ]
                 }
             ],
-            max_tokens=1000,
+            max_tokens=1500,
+            temperature=0.1
         )
 
         output = response.choices[0].message.content.strip()
+        print(f"Vision API response: {output}")
 
     except Exception as e:
-        print("GPT-4 Vision error:", e)
+        print(f"GPT-4 Vision error: {e}")
+        # Fallback: treat as question if user provided text, otherwise return error
+        if query.question and query.question.strip():
+            return {
+                "question": query.question,
+                "usage": "question",
+                "supporting_explanation": "Image processing failed, using text input only",
+                "image_url": None
+            }
+        else:
+            return {
+                "question": "Unable to process image. Please provide a text description of your math question.",
+                "usage": "error",
+                "supporting_explanation": None,
+                "image_url": None
+            }
+
+    # Parse the structured response
+    if output.startswith("QUESTION:"):
+        extracted_question = output.replace("QUESTION:", "").strip()
+        final_question = combine_question_sources(query.question, extracted_question)
+        
         return {
-            "question": query.question,
+            "question": final_question,
             "usage": "question",
             "supporting_explanation": None,
-            "image_url": None
+            "image_url": upload_image_to_supabase(query.image)
         }
-
-    # Heuristic to detect if the output is a math question
-    is_question = any(sym in output for sym in ["=", "\\frac", "solve", "find", "$", "?" ]) or output.lower().strip().endswith("?")
-
-    if is_question:
-        return {
-            "question": output,
-            "usage": "question",
-            "supporting_explanation": None,
-            "image_url": None
-        }
-    else:
+    
+    elif output.startswith("SUPPORT:"):
+        supporting_text = output.replace("SUPPORT:", "").strip()
         image_url = upload_image_to_supabase(query.image)
+        
+        final_question = query.question or "Please solve the math problem shown in the image."
+        
         return {
-            "question": query.question,
+            "question": final_question,
             "usage": "support",
-            "supporting_explanation": output,
+            "supporting_explanation": supporting_text,
             "image_url": image_url
         }
+    
+    else:  # UNCLEAR or unexpected response
+        print(f"Unclear image analysis: {output}")
+        if query.question and query.question.strip():
+            return {
+                "question": query.question,
+                "usage": "question",
+                "supporting_explanation": f"Image analysis unclear: {output}",
+                "image_url": None
+            }
+        else:
+            return {
+                "question": "Unable to extract a clear math question from the image. Please provide a text description.",
+                "usage": "error",
+                "supporting_explanation": output,
+                "image_url": None
+            }
+
+def combine_question_sources(user_text: Optional[str], extracted_text: str) -> str:
+    """
+    Intelligently combine user-provided text with extracted image text
+    """
+    if not user_text or not user_text.strip():
+        return extracted_text
+    
+    if not extracted_text or not extracted_text.strip():
+        return user_text
+    
+    # If they're very similar, just use the extracted text (likely more complete)
+    user_clean = re.sub(r'\s+', ' ', user_text.lower().strip())
+    extracted_clean = re.sub(r'\s+', ' ', extracted_text.lower().strip())
+    
+    if user_clean in extracted_clean or extracted_clean in user_clean:
+        return extracted_text if len(extracted_text) > len(user_text) else user_text
+    
+    # If different, combine them
+    return f"{user_text}\n\nAdditional details from image: {extracted_text}"
+
+
+def upload_image_to_supabase(base64_str: str) -> str:
+    """
+    Upload image to Supabase storage with better error handling
+    """
+    try:
+        # Decode and validate image
+        image_bytes = base64.b64decode(base64_str)
+        if len(image_bytes) == 0:
+            print("Error: Empty image data")
+            return ""
+        
+        # Generate unique filename
+        filename = f"question_{uuid.uuid4().hex}.jpg"
+        filepath = f"question-images/{filename}"
+
+        # Upload to Supabase
+        res = supabase.storage.from_("question-images").upload(
+            filepath,
+            image_bytes,
+            {"content-type": "image/jpeg", "upsert": "false"}
+        )
+        
+        # Check for successful upload
+        if hasattr(res, 'data') and res.data:
+            public_url = f"{SUPABASE_URL}/storage/v1/object/public/question-images/{filename}"
+            print(f"Image uploaded successfully: {public_url}")
+            return public_url
+        else:
+            print(f"Upload failed - Response: {res}")
+            return ""
+            
+    except Exception as e:
+        print(f"Error uploading image to Supabase: {e}")
+        return ""
+
+
+def validate_image_data(base64_str: str) -> bool:
+    """
+    Validate that the base64 string contains valid image data
+    """
+    try:
+        image_bytes = base64.b64decode(base64_str)
+        # Check if it starts with common image headers
+        if image_bytes.startswith(b'\xff\xd8\xff'):  # JPEG
+            return True
+        elif image_bytes.startswith(b'\x89PNG\r\n\x1a\n'):  # PNG
+            return True
+        elif image_bytes.startswith(b'GIF87a') or image_bytes.startswith(b'GIF89a'):  # GIF
+            return True
+        else:
+            return False
+    except:
+        return False
+
+
+
+
+#def upload_image_to_supabase(base64_str: str) -> str:
+#     image_bytes = base64.b64decode(base64_str)
+#     filename = f"question_{uuid.uuid4().hex}.png"
+#     filepath = f"question-images/{filename}"
+
+#     res = supabase.storage.from_("question-images").upload(
+#         filepath,
+#         image_bytes,
+#         {"content-type": "image/png"}
+#     )
+#     if hasattr(res, 'data') and res.data:
+#         return f"{SUPABASE_URL}/storage/v1/object/public/{filepath}"
+#     print("Upload failed:", res)
+#     return ""

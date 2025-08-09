@@ -1,23 +1,28 @@
 from fastapi import APIRouter, UploadFile, File, Form
-from app.models import Query
+from app.models import EnhancedQuery
 from app.chain import get_retriever_for_collection
 from openai import OpenAI
 import os
 from app.pipeline import process_pdf, classify_question_to_collection, process_image_query_with_gpt
-from app.tools import MathResponseParser, MathSolverTool, LaTeXFormatterTool, OpenAIWrapper, OpenAICompatibleLLM, MathTutorTool
+from app.tools import (
+    OpenAIWrapper, MathTutorTool, LaTeXFormatterTool, MathResponseParser,
+    MathSolverTool, ExtractMathTool, RetrieveContextTool, SympySolveTool
+)
 from langchain.agents import initialize_agent, AgentType
-from langchain.tools import Tool as LangChainTool
-
+from langchain.chat_models import ChatOpenAI
+from langchain.schema import OutputParserException
 
 router = APIRouter()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+#this is the old ask question function
 @router.post("/ask")
-def ask_question(query: Query):
+def ask_question(query: EnhancedQuery):
     """Simplified route - no agent, direct tool usage"""
     
     try:
+        print(f"The query: {query.model_dump()}")
         # Step 1: Process image and get question
         image_result = process_image_query_with_gpt(query)
         original_question = image_result["question"]
@@ -141,6 +146,104 @@ def ask_question(query: Query):
             "sympy_solution": None
         }
 
+#this is /ask with agent
+#@router.post("/ask")
+# def ask_question(query: Query):
+#     try:
+#         # --- Step 0: Image & question ---
+#         image_result = process_image_query_with_gpt(query)
+#         original_question = image_result["question"]
+#         print("Question:", original_question)
+
+#         # --- Step 1: Retriever for this collection ---
+#         collection = classify_question_to_collection(original_question)
+#         retriever = get_retriever_for_collection(collection)
+
+#         # --- Step 2: LLMs / tools ---
+#         agent_llm = ChatOpenAI(
+#             model="gpt-4o",
+#             temperature=0,
+#             openai_api_key=client.api_key
+#         )
+#         llm_wrapper = OpenAIWrapper(client)
+
+#         extract_tool = ExtractMathTool(llm=llm_wrapper)
+#         sympy_tool   = SympySolveTool()
+#         ctx_tool     = RetrieveContextTool(retriever=retriever)
+#         tutor_tool   = MathTutorTool(llm=llm_wrapper)
+#         fmt_tool     = LaTeXFormatterTool(llm=llm_wrapper)
+
+#         tools = [extract_tool, sympy_tool, ctx_tool, tutor_tool, fmt_tool]
+
+#         # --- Step 3: Use simpler agent type ---
+#         prefix = """You are a math assistant that follows these steps:
+
+#             1. First, use extract_math tool with the user's question
+#             2. Then, use sympy_solver tool with the extracted equation and target
+#             3. Next, use retrieve_context tool with the original question
+#             4. Then, use math_tutor tool with the extracted question, context, and solution
+
+#             Complete all steps in order and provide the final formatted response in proper JSON format. DO NOT include any additional text before or after the JSON object. DO NOT use markdown code fences like ```json."""
+
+#         agent = initialize_agent(
+#             tools=tools,
+#             llm=agent_llm,
+#             agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
+#             verbose=True,
+#             max_iterations=8,
+#             handle_parsing_errors=True,  # Let LangChain handle parsing errors
+#             agent_kwargs={
+#                 "prefix": prefix,
+#                 "suffix": """Begin! Remember to use the tools in the specified order.
+
+#                 Question: {input}
+#                 {agent_scratchpad}"""
+#             }
+#         )
+
+#         final_text = agent.invoke(original_question)
+#         print("Agent final:", final_text)
+
+#         # --- Step 5: Parse response ---
+#         parser = MathResponseParser()
+#         parsed = parser.parse(final_text)
+
+#         return {
+#             "solution": parsed["solution"],
+#             "explanation_steps": parsed["explanation_steps"],
+#             # "latex_question": parsed["latex_solution"],
+#             "image_url": image_result["image_url"],
+#             "used_image_as": image_result["usage"],
+#             "sympy_solution": None,
+#             "debug_info": {
+#                 "collection": collection
+#             }
+#         }
+
+#     except Exception as e:
+#         print("Error in ask_question:", e)
+#         return {
+#             "solution": "Error occurred while processing the question",
+#             "explanation_steps": ["An error occurred. Please try again."],
+#             "answer": "Error occurred",
+#             "image_url": image_result.get("image_url", "") if 'image_result' in locals() else "",
+#             "used_image_as": "error",
+#             "sympy_solution": None
+#         }
+
+# @router.post("/submit_pdf")
+# async def submit_pdf(
+#     pdf: UploadFile = File(...),
+#     exam_name: str = Form(...)  # <-- exam name input (e.g., "SAT")
+# ):
+#     if pdf.content_type != "application/pdf":
+#         return {"error": "Please upload a valid PDF file."}
+
+#     contents = await pdf.read()
+#     process_pdf(contents, exam_name.lower())  # <-- runs classification, extraction, and DB insert
+
+#     return {"message": "✅ PDF processed and questions saved to database."}
+
 # @router.post("/ask")
 # def ask_question(query: Query):
 #     """Improved route using LangChain tools with OpenAI client"""
@@ -255,18 +358,6 @@ def ask_question(query: Query):
 #         }
 
 
-@router.post("/submit_pdf")
-async def submit_pdf(
-    pdf: UploadFile = File(...),
-    exam_name: str = Form(...)  # <-- exam name input (e.g., "SAT")
-):
-    if pdf.content_type != "application/pdf":
-        return {"error": "Please upload a valid PDF file."}
-
-    contents = await pdf.read()
-    process_pdf(contents, exam_name.lower())  # <-- runs classification, extraction, and DB insert
-
-    return {"message": "✅ PDF processed and questions saved to database."}
 
 # def solve_equation_with_sympy(question_text):
 #     """
