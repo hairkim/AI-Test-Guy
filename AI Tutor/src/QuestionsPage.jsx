@@ -11,14 +11,16 @@ export default function QuestionsPage() {
     const [solution, setSolution] = useState("");
     const [explanationSteps, setExplanationSteps] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [image, setImage] = useState("");
   
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
   
     const submitPrompt = async () => {
-      if(!question) {
-        setError("Please enter a question into the field")
+      if(!question && !image) {
+        setError("Please enter a question or image into the field")
         return
       }
+      // console.log(image);
   
       setIsLoading(true);
       setError("");
@@ -33,7 +35,7 @@ export default function QuestionsPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ question }), // sending { "question": "..." }
+          body: JSON.stringify({ question: question, image: image}), // sending { "question": "..." }
         });
     
         const data = await res.json();
@@ -63,7 +65,7 @@ export default function QuestionsPage() {
         <h2>
           Ask me a question!
         </h2>
-        <DragAndDrop />
+        <DragAndDrop storeImage={setImage} />
         <form className='form' onSubmit={(e) => { e.preventDefault(); submitPrompt(); }}>
           <textarea
             className="prompt"

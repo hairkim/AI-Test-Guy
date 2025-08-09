@@ -1,12 +1,21 @@
 from langchain.prompts import PromptTemplate
 from langchain.schema import BaseOutputParser
 from langchain.tools import BaseTool
-from langchain.pydantic_v1 import Field, BaseModel
-from langchain.chat_models import ChatOpenAI
-from typing import Optional, Dict, Any
+from pydantic import Field, BaseModel
 import re, json
 from langchain.llms.base import LLM
-from typing import Type
+from typing import Optional, Dict, Any, Type
+import sympy as sp
+from sympy import symbols, Eq, solve, simplify, latex
+import textwrap
+
+
+from sympy.parsing.sympy_parser import (
+    parse_expr,
+    standard_transformations,
+    implicit_multiplication_application,
+)
+TRANSFORMS = standard_transformations + (implicit_multiplication_application,)
 
 class OpenAIWrapper:
     """Wrapper to make OpenAI client compatible with LangChain tools"""
@@ -49,6 +58,10 @@ class MathExtractionParser(BaseOutputParser[MathExtractionOutput]):
     
     def parse(self, text: str) -> MathExtractionOutput:
         try:
+            # Ensure text is a string
+            if isinstance(text, dict):
+                text = str(text)
+            
             raw = text.strip()
 
             # Remove any markdown code fences like ```json ... ```
@@ -63,11 +76,13 @@ class MathExtractionParser(BaseOutputParser[MathExtractionOutput]):
             # Fallback: parse from text format
             equation = "NO_EQUATION"
             target_expression = "NONE"
-            for line in raw.splitlines():
-                if line.lower().startswith("equation:"):
-                    equation = line.split(":", 1)[1].strip()
-                elif line.lower().startswith("target:"):
-                    target_expression = line.split(":", 1)[1].strip()
+            # Ensure we can split lines safely
+            if isinstance(raw, str):
+                for line in raw.splitlines():
+                    if line.lower().startswith("equation:"):
+                        equation = line.split(":", 1)[1].strip()
+                    elif line.lower().startswith("target:"):
+                        target_expression = line.split(":", 1)[1].strip()
 
             return MathExtractionOutput(
                 equation=equation,
@@ -90,42 +105,88 @@ class MathExtractionParser(BaseOutputParser[MathExtractionOutput]):
             "has_equation": true/false
         }"""
 
+# class MathResponseParser(BaseOutputParser):
+#     """Parser for structured math responses (not equation extraction!)"""
+    
+#     def parse(self, agent_output: Dict[str, Any]) -> Dict[str, Any]:
+#         output_str = agent_output.get("output", "")
+#         try:
+#             parsed = json.loads(output_str)
+#             return {
+#                 "solution": parsed.get("solution", ""),
+#                 "explanation_steps": parsed.get("explanation_steps", []),
+#                 "latex_solution": parsed.get("latex_solution", ""),
+#                 "method": parsed.get("method", "")
+#             }
+#         except json.JSONDecodeError as e:
+#             raise ValueError(f"Failed to parse JSON: {e}")
+
+
+        # solution = ""
+        # explanation_steps = []
+
+        # if text['output']:
+        #     output = json.loads(text["output"])
+        #     print("Output:", output)
+        #     if output['action_input']:
+        #         action_input = json.loads(output['action_input'])
+        #         if action_input["solution"]: 
+        #             print("Solution:", action_input["solution"].strip())
+        #             solution = action_input["solution"].strip()
+        #         else:
+        #             solution = "No solution found"
+                
+        #         if action_input["explanation_steps"]:  
+        #             print("Explanation steps:", action_input["explanation_steps"].strip())
+        #             for step in action_input["explanation_steps"]:
+        #                 explanation_steps.append(step.strip())
+        #         else:
+        #             explanation_steps = ["No explanation steps found"]
+        
+        # return {
+        #     "solution": solution,
+        #     "explanation_steps": explanation_steps,
+        #     "full_response": text
+        # }
+
+
 
 class MathResponseParser(BaseOutputParser):
-    """Parser for structured math responses (not equation extraction!)"""
+    """Parser for JSON-structured math responses"""
     
     def parse(self, text: str) -> Dict[str, Any]:
-        solution = ""
-        explanation_steps = []
+        print("reached parse function")
+        # Ensure text is a string
+        if isinstance(text, dict):
+            # text is already structured; serialize properly
+            text = json.dumps(text, ensure_ascii=False)
         
-        if "SOLUTION:" in text and "EXPLANATION:" in text:
-            parts = text.split("EXPLANATION:")
-            solution = parts[0].replace("SOLUTION:", "").strip()
+        try:
+            # Clean up any markdown code fences
+            cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.IGNORECASE|re.MULTILINE)
             
-            explanation_text = parts[1].strip()
-            # Split by numbered steps
-            steps = re.split(r'\n(?=\d+\.)', explanation_text)
-            explanation_steps = [step.strip() for step in steps if step.strip()]
-        else:
-            # Try to extract solution from math solver output
-            lines = text.split('\n')
-            for line in lines:
-                if line.startswith("Solution:") or line.startswith("The value of"):
-                    solution = line
-                    break
+            # Parse JSON
+            result = json.loads(cleaned)
+            print("Result:", result)
             
-            # If no structured format, use the whole text
-            if not solution:
-                solution = text
-                explanation_steps = [text]
-            else:
-                explanation_steps = lines
-        
-        return {
-            "solution": solution,
-            "explanation_steps": explanation_steps,
-            "full_response": text
-        }
+            # Ensure required fields exist
+            if "solution" not in result:
+                result["solution"] = "No solution found"
+            if "explanation_steps" not in result:
+                result["explanation_steps"] = []
+            if "full_response" not in result:
+                result["full_response"] = text
+                
+            return result
+            
+        except json.JSONDecodeError:
+            # Fallback if JSON parsing fails
+            return {
+                "solution": "Parse error - invalid JSON format",
+                "explanation_steps": ["Failed to parse response"],
+                "full_response": text,
+                "parse_error": True
+            }
 
 
 class MathSolverTool(BaseTool):
@@ -139,7 +200,6 @@ class MathSolverTool(BaseTool):
     """
     
     llm: OpenAIWrapper = Field(description="Language model for equation extraction")
-    # llm: ChatOpenAI = Field(description="Language model for equation extraction")
     
     def __init__(self, llm: OpenAIWrapper, **kwargs):
         super().__init__(llm=llm, **kwargs)
@@ -147,6 +207,10 @@ class MathSolverTool(BaseTool):
     def _run(self, question_text: str) -> str:
         """Execute the math solving process"""
         try:
+            # Ensure question_text is a string
+            if isinstance(question_text, dict):
+                question_text = str(question_text)
+            
             result = self.solve_equation_with_sympy(question_text)
             if result:
                 return self._format_result(result)
@@ -166,6 +230,10 @@ class MathSolverTool(BaseTool):
         Returns the solution if found, otherwise returns None.
         """
         try:
+            # Ensure question_text is a string
+            if isinstance(question_text, dict):
+                question_text = str(question_text)
+            
             # Create the combined extraction prompt
             extraction_prompt = PromptTemplate(
                 input_variables=["question"],
@@ -290,6 +358,10 @@ class MathSolverTool(BaseTool):
     
     def _identify_target_variable(self, question_text: str, free_symbols):
         """Identify which variable to solve for based on question context"""
+        # Ensure question_text is a string
+        if isinstance(question_text, dict):
+            question_text = str(question_text)
+        
         question_lower = question_text.lower()
         
         if "solve for" in question_lower:
@@ -367,12 +439,13 @@ class MathTutorInput(BaseModel):
 
 
 class MathTutorTool(BaseTool):
-    """Tool for providing step-by-step math explanations"""
+    """Tool for providing step-by-step math explanations with JSON output"""
     
     name: str = "math_tutor"
     description: str = """
     Provides detailed step-by-step explanations for math problems.
     Input should be a math question with optional context and reference answer.
+    Returns structured JSON response.
     """
     args_schema: Type[MathTutorInput] = MathTutorInput
     
@@ -382,24 +455,52 @@ class MathTutorTool(BaseTool):
         super().__init__(llm=llm, **kwargs)
     
     def _run(self, question: str, context: str = "", reference_answer: str = "") -> str:
+        # Ensure all inputs are strings
+        if isinstance(question, dict):
+            question = str(question)
+        if isinstance(context, dict):
+            context = str(context)
+        if isinstance(reference_answer, dict):
+            reference_answer = str(reference_answer)
+        
         prompt = PromptTemplate.from_template(
-            """You are a helpful math tutor. Provide a clear, step-by-step solution.
+            """You are a helpful math tutor. Solve the problem step-by-step and return your response in JSON format.
 
-            IMPORTANT: Structure your response EXACTLY as follows:
-            SOLUTION: [final answer in LaTeX format]
+            CRITICAL: Return ONLY a JSON object with this exact structure (NO ADDITIONAL TEXT, NO MARKDOWN FENCES, NO \n NEWLINES OR SPACES):
+{{
+"solution": "Final answer in LaTeX format with $ delimiters (e.g., '$p = \\\\frac{{15y}}{{221x}}$')",
+"explanation_steps": [
+{{
+"step": "Step 1: Clear description of first step with reasoning",
+"method": "Mathematical technique used (e.g., 'Substitution', 'Cross-multiplication', 'Factoring') (MAKE SURE TO NOT ADD ANY MORE COMMENTARY ON THIS ROW)"
+}},
+{{
+"step": "Step 2: Clear description of second step with reasoning",
+"method": "Mathematical technique used (e.g., 'Algebraic manipulation', 'Simplification')"
+}},
+{{
+"step": "Step 3: Continue until solution is reached",
+"method": "Mathematical technique used (e.g., 'Solving for variable', 'Final calculation')"
+}}
+],
+"latex_solution": "LaTeX only without $ delimiters (e.g., 'p = \\\\frac{{15y}}{{221x}}')",
+"method": "Brief description of the overall method used (e.g., 'cross-multiplication and algebraic manipulation')"
+}}
 
-            EXPLANATION:
-            1. [first step with clear reasoning]
-            2. [second step with clear reasoning]
-            3. [continue until solution is reached]
+            Rules:
+            - Use double backslashes (\\\\) for LaTeX commands in JSON strings
+            - Each explanation step should be a complete sentence with its corresponding method
+            - Each step's method should be a concise mathematical technique name
+            - The solution should include $ delimiters for proper rendering
+            - Do NOT include any text before or after the JSON object
+            - Do NOT use markdown code fences like ```json
+            - Do NOT add spaces before or after the JSON data
 
             {reference_info}
 
             {context_info}
 
-            Question: {question}
-
-            Response:""")
+            Question: {question}""")
         
         reference_info = ""
         if reference_answer:
@@ -407,7 +508,7 @@ class MathTutorTool(BaseTool):
         
         context_info = ""
         if context:
-            context_info = f"Context: {context}\n"
+            context_info = f"Context: {context}"
         
         try:
             response = self.llm.predict(prompt.format(
@@ -417,7 +518,14 @@ class MathTutorTool(BaseTool):
             ))
             return response.strip()
         except Exception as e:
-            return f"Error generating explanation: {str(e)}"
+            # Return error in JSON format
+            error_response = {
+                "solution": f"Error: {str(e)}",
+                "explanation_steps": ["An error occurred while generating the explanation"],
+                "latex_solution": "Error",
+                "method": "Error"
+            }
+            return json.dumps(error_response)
     
     async def _arun(self, question: str, context: str = "", reference_answer: str = "") -> str:
         return self._run(question, context, reference_answer)
@@ -434,12 +542,15 @@ class LaTeXFormatterTool(BaseTool):
     """
     
     llm: OpenAIWrapper = Field(description="Language model for LaTeX formatting")
-    # llm: ChatOpenAI = Field(description="Language model for LaTeX formatting")
     
     def __init__(self, llm: OpenAIWrapper, **kwargs):
         super().__init__(llm=llm, **kwargs)
     
     def _run(self, text: str) -> str:
+        # Ensure text is a string
+        if isinstance(text, dict):
+            text = str(text)
+        
         prompt = PromptTemplate.from_template(
             """Format ONLY the math expressions using LaTeX delimiters. 
 
@@ -448,6 +559,7 @@ class LaTeXFormatterTool(BaseTool):
             - Wrap inline math with $...$ only. Do NOT use \\[...\\] or $$...$$.
             - Do NOT add any commentary or preface. Output ONLY the formatted text.
             - No code fences/backticks.
+            - Make sure that if the math expression is a string, keep it in string format.
 
             Text: {text}
 
@@ -462,6 +574,9 @@ class LaTeXFormatterTool(BaseTool):
             return f"Error formatting LaTeX: {str(e)}"
         
     def _clean_katex_output(self, s: str) -> str:
+        # Ensure s is a string
+        if isinstance(s, dict):
+            s = str(s)
         # strip code fences
         s = re.sub(r"^```(?:latex|tex)?\s*|\s*```$", "", s, flags=re.IGNORECASE | re.MULTILINE)
         # strip a leading "Here is..." boilerplate
@@ -469,6 +584,9 @@ class LaTeXFormatterTool(BaseTool):
         return s.strip()
 
     def _normalize_latex_delimiters(self, s: str) -> str:
+        # Ensure s is a string
+        if isinstance(s, dict):
+            s = str(s)
         # Convert display math to inline to match your renderer
         s = re.sub(r"\\\[(.*?)\\\]", r"$\1$", s, flags=re.S)
         s = re.sub(r"\$\$(.*?)\$\$", r"$\1$", s, flags=re.S)
@@ -476,3 +594,216 @@ class LaTeXFormatterTool(BaseTool):
         s = re.sub(r"\\\((.*?)\\\)", r"$\1$", s, flags=re.S)
         return s
 
+
+class ExtractMathInput(BaseModel):
+    question: str = Field(..., description="Raw user question in natural language (may include LaTeX).")
+
+class ExtractMathOutput(BaseModel):
+    plain_question: str
+    latex_question: str
+    sympy_equation: str        # e.g. "Eq(3/(13*p), 17*x/(5*y))" or "NO_EQUATION"
+    target_expression: str     # e.g. "p" or "3/x" or "NONE"
+
+class ExtractMathTool(BaseTool):
+    name: str = "extract_math"
+    description: str = (
+        "Extracts the mathematical structure from a question. "
+        "Returns JSON with: plain_question, latex_question, sympy_equation, target_expression."
+    )
+    args_schema: Type[ExtractMathInput] = ExtractMathInput
+    llm: OpenAIWrapper = Field(description="LLM used to extract equation/target.")
+
+    def __init__(self, llm: OpenAIWrapper, **kwargs):
+        super().__init__(llm=llm, **kwargs)
+
+    def _run(self, question: str) -> str:
+        # Ensure question is a string
+        if isinstance(question, dict):
+            question = str(question)
+        
+        # Strict prompt: JSON only, no fences
+        prompt = PromptTemplate.from_template(textwrap.dedent("""
+            Analyze the question and output ONLY one JSON object (no prose, no backticks) with keys:
+            - "plain_question": same question, plain English
+            - "latex_question": question with inline math wrapped in $...$
+            - "sympy_equation": SymPy-compatible equation like "Eq(3/(13*p), 17*x/(5*y))" or "NO_EQUATION"
+            - "target_expression": expression/variable to evaluate (e.g., "p", "3/x") or "NONE"
+
+            Rules:
+            - Use '*' for multiplication, e.g., 13*p
+            - If the question says "write p in terms of ..." or "solve for p", set target_expression="p"
+            - Do not include code fences/backticks.
+            - Only output valid JSON.
+
+            Question: {question}
+        """))
+        raw = self.llm.predict(prompt.format(question=question), model="gpt-4o-mini", temperature=0)
+
+        # Defensive cleaning: strip any accidental fences
+        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.IGNORECASE|re.MULTILINE)
+
+        # Validate JSON
+        try:
+            data = json.loads(cleaned)
+        except Exception:
+            # Fallback minimal extraction if model failed JSON
+            data = {
+                "plain_question": question,
+                "latex_question": question,
+                "sympy_equation": "NO_EQUATION",
+                "target_expression": "NONE",
+            }
+        # Return as string (agents exchange strings)
+        return json.dumps(data)
+
+    async def _arun(self, question: str) -> str:
+        return self._run(question)
+
+
+class SympySolveInput(BaseModel):
+    sympy_equation: str = Field(..., description='e.g. "Eq(3/(13*p), 17*x/(5*y))"')
+    target_expression: str = Field(..., description='variable/expression to evaluate, e.g. "p" or "NONE"')
+
+class SympySolveTool(BaseTool):
+    name: str = "sympy_solver"
+    description: str = (
+        "Solves a SymPy equation and (optionally) evaluates a target expression. "
+        "Input must include sympy_equation and target_expression."
+    )
+    args_schema: Type[SympySolveInput] = SympySolveInput
+
+    def _run(self, sympy_equation: str, target_expression: str) -> str:
+        # Ensure inputs are strings
+        if isinstance(sympy_equation, dict):
+            sympy_equation = str(sympy_equation)
+        if isinstance(target_expression, dict):
+            target_expression = str(target_expression)
+        
+        # Build symbol environment
+        common_vars = 'x y z p q r s t a b c d e f g h i j k l m n o u v w'
+        symbol_dict = {v: symbols(v) for v in common_vars.split()}
+        symbol_dict.update({"Eq": Eq, "sp": sp})
+
+        out: Dict[str, Any] = {
+            "status": "ok",
+            "solution_symbol": None,
+            "solution_expr": None,
+            "solution_latex": None,
+            "target_expression": target_expression,
+            "target_value": None,
+            "target_latex": None,
+        }
+
+        try:
+            if sympy_equation == "NO_EQUATION":
+                out["status"] = "no_equation"
+                return json.dumps(out)
+
+            # Parse Eq(...) or expression
+            if "Eq(" in sympy_equation:
+                eq = eval(sympy_equation, symbol_dict)
+            else:
+                expr = eval(sympy_equation, symbol_dict)
+                eq = Eq(expr, 0)
+
+            free = list(eq.free_symbols)
+            # Determine variable to solve from target_expression if single symbol
+            solve_var = None
+            if target_expression and target_expression != "NONE":
+                # if target looks like a single symbol, solve for it
+                if re.fullmatch(r"[a-z]", target_expression.strip()):
+                    solve_var = symbols(target_expression.strip())
+
+            # fallback: single var equation or pick p/x/y
+            if solve_var is None:
+                if len(free) == 1:
+                    solve_var = free[0]
+                else:
+                    for name in ["p", "x", "y", "z", "q"]:
+                        s = symbols(name)
+                        if s in free:
+                            solve_var = s
+                            break
+
+            if solve_var is None:
+                out["status"] = "no_solve_var"
+                return json.dumps(out)
+
+            sols = solve(eq, solve_var)
+            if not sols:
+                out["status"] = "no_solution"
+                return json.dumps(out)
+
+            sol = simplify(sols[0])
+            out["solution_symbol"] = str(solve_var)
+            out["solution_expr"] = str(sol)
+            out["solution_latex"] = f"${solve_var} = {latex(sol)}$"
+
+            # Evaluate target expression if provided and not a single symbol same as solve_var
+            if target_expression and target_expression != "NONE":
+                try:
+                    target_expr = eval(target_expression, symbol_dict)
+                    evaluated = simplify(target_expr.subs(solve_var, sol))
+                    out["target_value"] = str(evaluated)
+                    out["target_latex"] = f"${target_expression} = {latex(evaluated)}$"
+                except Exception:
+                    # ignore eval errors
+                    pass
+
+            return json.dumps(out)
+
+        except Exception as e:
+            out["status"] = "error"
+            out["error"] = str(e)
+            return json.dumps(out)
+
+    async def _arun(self, sympy_equation: str, target_expression: str) -> str:
+        return self._run(sympy_equation, target_expression)
+
+
+class RetrieveContextInput(BaseModel):
+    query: str = Field(..., description="Natural language query to retrieve context for.")
+    k: int = Field(2, description="Top-k documents to concatenate.")
+    max_chars: int = Field(1800, description="Soft cap on returned context length.")
+
+class RetrieveContextTool(BaseTool):
+    name: str = "retrieve_context"
+    description: str = "Retrieves top-k text snippets from the vector DB for grounding the explanation."
+    args_schema: Type[RetrieveContextInput] = RetrieveContextInput
+
+    def __init__(self, retriever, **kwargs):
+        super().__init__(**kwargs)
+        self._retriever = retriever
+
+    def _run(self, query: str, k: int = 2, max_chars: int = 1800) -> str:
+        try:
+            # Ensure query is a string
+            if isinstance(query, dict):
+                query = str(query)
+            
+            docs = self._retriever.invoke(query)  # new Runnable API
+            docs = docs[:k]
+            
+            # Handle cases where docs might be dicts or have different structures
+            ctx_parts = []
+            for d in docs:
+                if hasattr(d, 'page_content'):
+                    ctx_parts.append(d.page_content)
+                elif isinstance(d, dict) and 'page_content' in d:
+                    ctx_parts.append(d['page_content'])
+                elif isinstance(d, dict) and 'content' in d:
+                    ctx_parts.append(d['content'])
+                elif isinstance(d, str):
+                    ctx_parts.append(d)
+                else:
+                    ctx_parts.append(str(d))
+            
+            ctx = "\n\n".join(ctx_parts)
+            print("Context length:", len(ctx))
+            return ctx[:max_chars]
+        except Exception as e:
+            print("Error retrieving context:", e)
+            return ""
+
+    async def _arun(self, query: str, k: int = 2, max_chars: int = 1800) -> str:
+        return self._run(query, k, max_chars)
