@@ -1,0 +1,11 @@
+.text-container {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+}
+
+.textbox {
+    width: 500px;
+    height: 300px;
+    overflow: wrap;
+}
