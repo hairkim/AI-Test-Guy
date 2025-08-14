@@ -1,17 +1,18 @@
 from langchain_postgres import PGVector
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.chat_models import ChatOpenAI
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.chains import RetrievalQA
-from langchain.schema import Document
-import json, os
+import os
 from dotenv import load_dotenv
+from app.embeddingModels import MathBERTEmbeddings
+import torch
 
 
 load_dotenv()
 vector_url = os.getenv("DATABASE_URL")
 retriever_cache = {}
-embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+modelId = "tbs17/MathBERT-custom"
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+embedding_model = MathBERTEmbeddings(model_id=modelId, device=device)
 
 def get_vectorstore(collection_name: str) -> PGVector:
     """

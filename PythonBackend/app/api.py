@@ -1,20 +1,37 @@
-from fastapi import APIRouter, UploadFile, File, Form
-from app.models import EnhancedQuery
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from app.models import EnhancedQuery, EnglishQuery
 from app.chain import get_retriever_for_collection
 from openai import OpenAI
 import os
 from app.pipeline import process_pdf, classify_question_to_collection, process_image_query_with_gpt
 from app.tools import (
     OpenAIWrapper, MathTutorTool, LaTeXFormatterTool, MathResponseParser,
-    MathSolverTool, ExtractMathTool, RetrieveContextTool, SympySolveTool
+    MathSolverTool, ExtractMathTool, RetrieveContextTool, SympySolveTool,
 )
+from app.english_tools import EnglishTutorTool, TutorResponseAdapter
 from langchain.agents import initialize_agent, AgentType
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import OutputParserException
+import json
+from typing import Optional
 
 router = APIRouter()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# model_manager = ModelManager()
+# model, tokenizer = model_manager.get_model_and_tokenizer()
+
+llm_wrapper = OpenAIWrapper(client)
+# llm = OpenAICompatibleLLM(openai_wrapper=llm_wrapper)
+# huggingface_wrapper = HuggingFaceWrapper(model, tokenizer)
+
+# Create tools
+math_solver = MathSolverTool(llm=llm_wrapper)
+latex_formatter = LaTeXFormatterTool(llm=llm_wrapper)
+# math_tutor = MathTutorTool(llm=huggingface_wrapper)
+parser = MathResponseParser()
+english_tutor = EnglishTutorTool(llm=llm_wrapper)
 
 #this is the old ask question function
 @router.post("/ask")
@@ -22,7 +39,7 @@ def ask_question(query: EnhancedQuery):
     """Simplified route - no agent, direct tool usage"""
     
     try:
-        print(f"The query: {query.model_dump()}")
+        # print(f"The query: {query.model_dump()}")
         # Step 1: Process image and get question
         image_result = process_image_query_with_gpt(query)
         original_question = image_result["question"]
@@ -33,14 +50,6 @@ def ask_question(query: EnhancedQuery):
         print("Collection name used:", collection)
         retriever = get_retriever_for_collection(collection)
         
-        # Step 3: Initialize LLM wrapper and tools
-        llm_wrapper = OpenAIWrapper(client)
-        # llm = OpenAICompatibleLLM(openai_wrapper=llm_wrapper)
-        
-        # Create tools
-        math_solver = MathSolverTool(llm=llm_wrapper)
-        latex_formatter = LaTeXFormatterTool(llm=llm_wrapper)
-        math_tutor = MathTutorTool(llm=llm_wrapper)
         
         # Step 4: Get SymPy solution first
         sympy_solution = None
@@ -50,16 +59,22 @@ def ask_question(query: EnhancedQuery):
             print(f"SymPy result: {sympy_result}")
             
             if "Could not solve" not in sympy_result and "Error" not in sympy_result:
-                sympy_solution = sympy_result
-                # Extract the main answer for reference
-                lines = sympy_result.split('\n')
-                for line in lines:
-                    if "Solution:" in line or "LaTeX:" in line:
-                        if "LaTeX:" in line:
-                            reference_answer = line.replace("LaTeX:", "").strip()
-                            break
-                        elif "Solution:" in line:
-                            reference_answer = line.replace("Solution:", "").strip()
+                # Parse the JSON string into a Python dictionary
+                try:
+                    sympy_data = json.loads(sympy_result)
+                    # Access the 'answer' key directly
+                    reference_answer = sympy_data.get("answer")
+                    
+                    # You can also get other values
+                    # numeric_value = sympy_data.get("numeric_value")
+                    # latex_solution = sympy_data.get("latex_solution")
+                    
+                    print(f"The reference answer is: {reference_answer}")
+                    
+                except json.JSONDecodeError:
+                    # Handle the case where sympy_result is not valid JSON
+                    print("Error: sympy_result is not a valid JSON string.")
+                    reference_answer = None
                 
                 print(f"Reference answer extracted: {reference_answer}")
         except Exception as e:
@@ -76,13 +91,29 @@ def ask_question(query: EnhancedQuery):
         # Step 6: Get context
         try:
             docs_context = retriever.invoke(original_question)
+            
+            # Debug: Print detailed context information
+            print(f"\n=== CONTEXT RETRIEVAL DEBUG ===")
+            print(f"Original question: {original_question}")
+            print(f"Number of retrieved documents: {len(docs_context)}")
+            
+            for i, doc in enumerate(docs_context[:2]):
+                print(f"\n--- Document {i+1} ---")
+                print(f"Content preview (first 200 chars): {doc.page_content[:200]}...")
+                if hasattr(doc, 'metadata'):
+                    print(f"Metadata: {doc.metadata}")
+            
             docs_text = "\n\n".join([doc.page_content for doc in docs_context[:2]])  # Limit to 2 docs
             
             # Add image context if available
             if image_result["usage"] == "support" and image_result["supporting_explanation"]:
+                print(f"\nAdding image context: {image_result['supporting_explanation'][:100]}...")
                 docs_text = image_result["supporting_explanation"] + "\n\n" + docs_text
             
-            print(f"Context length: {len(docs_text)} characters")
+            print(f"\nFinal context length: {len(docs_text)} characters")
+            print(f"Context preview (first 300 chars): {docs_text[:300]}...")
+            print("=== END CONTEXT DEBUG ===\n")
+            
         except Exception as e:
             print(f"Context retrieval failed: {e}")
             docs_text = ""
@@ -113,7 +144,6 @@ def ask_question(query: EnhancedQuery):
             formatted_answer = tutor_response
         
         # Step 9: Parse the response
-        parser = MathResponseParser()
         parsed_result = parser.parse(formatted_answer)
         
         print(f"Parsed result: {parsed_result}")
@@ -145,6 +175,26 @@ def ask_question(query: EnhancedQuery):
             "used_image_as": "error",
             "sympy_solution": None
         }
+
+
+@router.post("/ask_english")
+def ask_english(query: EnglishQuery):
+    result = english_tutor.run(query.question, query.passage)
+    print(result)
+    # 2) Normalize to dict
+    if isinstance(result, dict):
+        data = result
+    else:
+        try:
+            data = json.loads(result)
+        except json.JSONDecodeError as e:
+            raise HTTPException(status_code=422, detail=f"Invalid JSON from model: {e.msg}")
+    try:
+        resp = TutorResponseAdapter.validate_python(data)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Response validation error: {e}")
+
+    return resp
 
 #this is /ask with agent
 #@router.post("/ask")

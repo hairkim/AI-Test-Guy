@@ -28,6 +28,10 @@ class EnhancedQuery(BaseModel):
             values['question'] = None
 
         return values
+
+class EnglishQuery(BaseModel):
+    question: str = ""
+    passage: Optional[str] = None
     
     # @validator('image')
     # def validate_image(cls, v):
@@ -119,6 +123,6 @@ class QuestionEmbedding(Base):
     question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"))
     text = Column(Text)
     # embedding = Column(Vector(1536))  # OpenAI embedding size
-    embedding = Column(Vector(384))
+    embedding = Column(Vector(768))
 
     question = relationship("Question", backref="embedding")

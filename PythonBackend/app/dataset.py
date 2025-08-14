@@ -1,24 +1,32 @@
 from app.database import SessionLocal
 from app.models import Question, Solution, Exam, Section, QuestionEmbedding
+from app.embeddingModels import MathBERTEmbeddings
 from app.chain import get_vectorstore
 from openai import OpenAI
 import os, uuid, time
 from datasets import load_dataset
-from sentence_transformers import SentenceTransformer
+import torch
+from transformers import AutoTokenizer, AutoModel
+
+MODEL_ID = "tbs17/MathBERT-custom"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 #for embeddings
-model = SentenceTransformer('all-MiniLM-L6-v2')
 dataset = load_dataset("ndavidson/sat-math-chain-of-thought")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 db = SessionLocal()
 
+embedder = MathBERTEmbeddings(MODEL_ID, DEVICE)
+
 def createEmbedding(question: Question) -> QuestionEmbedding:
-    embedding_vector = model.encode(question.question_text).tolist()
+    embedding_vector = embedder.embed_query(question.question_text)  # -> List[float]
     return QuestionEmbedding(
         question_id=question.id,
         text=question.question_text,
         embedding=embedding_vector
     )
+
 
 def insert_from_dataset():
     start = time.time()

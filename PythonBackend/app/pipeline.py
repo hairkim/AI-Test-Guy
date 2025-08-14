@@ -233,7 +233,7 @@ def process_image_query_with_gpt(query: EnhancedQuery) -> dict:
     Process image query with improved vision capabilities and better question detection
     Note: Now works with EnhancedQuery which allows question to be None
     """
-    if query.image:
+    if query.image is not None:
         print("iamge was found yes lets goooo")
     if not query.image:
         # Handle case where only question text is provided
@@ -269,7 +269,7 @@ def process_image_query_with_gpt(query: EnhancedQuery) -> dict:
     3. If the image is unclear or contains no mathematical content, respond with:
        "UNCLEAR: [brief description of what you see]"
     
-    Be precise and extract mathematical notation carefully. Include all variables, equations, and constraints.
+    Be precise and extract mathematical notation carefully. Include all variables, equations, and constraints. You do not need to include the answer choices in your response.
     """.format(user_input=query.question or "(no text provided)")
 
     try:
