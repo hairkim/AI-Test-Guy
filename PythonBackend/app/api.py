@@ -1,21 +1,37 @@
-from fastapi import APIRouter, UploadFile, File, Form
-from app.models import EnhancedQuery
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from app.models import EnhancedQuery, EnglishQuery
 from app.chain import get_retriever_for_collection
 from openai import OpenAI
 import os
 from app.pipeline import process_pdf, classify_question_to_collection, process_image_query_with_gpt
 from app.tools import (
     OpenAIWrapper, MathTutorTool, LaTeXFormatterTool, MathResponseParser,
-    MathSolverTool, ExtractMathTool, RetrieveContextTool, SympySolveTool
+    MathSolverTool, ExtractMathTool, RetrieveContextTool, SympySolveTool, HuggingFaceWrapper, ModelManager
 )
+from app.english_tools import EnglishTutorTool, TutorResponseAdapter
 from langchain.agents import initialize_agent, AgentType
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import OutputParserException
 import json
+from typing import Optional
 
 router = APIRouter()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# model_manager = ModelManager()
+# model, tokenizer = model_manager.get_model_and_tokenizer()
+
+llm_wrapper = OpenAIWrapper(client)
+# llm = OpenAICompatibleLLM(openai_wrapper=llm_wrapper)
+# huggingface_wrapper = HuggingFaceWrapper(model, tokenizer)
+
+# Create tools
+math_solver = MathSolverTool(llm=llm_wrapper)
+latex_formatter = LaTeXFormatterTool(llm=llm_wrapper)
+# math_tutor = MathTutorTool(llm=huggingface_wrapper)
+parser = MathResponseParser()
+english_tutor = EnglishTutorTool(llm=llm_wrapper)
 
 #this is the old ask question function
 @router.post("/ask")
@@ -34,14 +50,6 @@ def ask_question(query: EnhancedQuery):
         print("Collection name used:", collection)
         retriever = get_retriever_for_collection(collection)
         
-        # Step 3: Initialize LLM wrapper and tools
-        llm_wrapper = OpenAIWrapper(client)
-        # llm = OpenAICompatibleLLM(openai_wrapper=llm_wrapper)
-        
-        # Create tools
-        math_solver = MathSolverTool(llm=llm_wrapper)
-        latex_formatter = LaTeXFormatterTool(llm=llm_wrapper)
-        math_tutor = MathTutorTool(llm=llm_wrapper)
         
         # Step 4: Get SymPy solution first
         sympy_solution = None
@@ -136,7 +144,6 @@ def ask_question(query: EnhancedQuery):
             formatted_answer = tutor_response
         
         # Step 9: Parse the response
-        parser = MathResponseParser()
         parsed_result = parser.parse(formatted_answer)
         
         print(f"Parsed result: {parsed_result}")
@@ -168,6 +175,26 @@ def ask_question(query: EnhancedQuery):
             "used_image_as": "error",
             "sympy_solution": None
         }
+
+
+@router.post("/ask_english")
+def ask_english(query: EnglishQuery):
+    result = english_tutor.run(query.question, query.passage)
+    print(result)
+    # 2) Normalize to dict
+    if isinstance(result, dict):
+        data = result
+    else:
+        try:
+            data = json.loads(result)
+        except json.JSONDecodeError as e:
+            raise HTTPException(status_code=422, detail=f"Invalid JSON from model: {e.msg}")
+    try:
+        resp = TutorResponseAdapter.validate_python(data)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Response validation error: {e}")
+
+    return resp
 
 #this is /ask with agent
 #@router.post("/ask")

@@ -28,6 +28,10 @@ class EnhancedQuery(BaseModel):
             values['question'] = None
 
         return values
+
+class EnglishQuery(BaseModel):
+    question: str = ""
+    passage: Optional[str] = None
     
     # @validator('image')
     # def validate_image(cls, v):
