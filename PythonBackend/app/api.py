@@ -6,7 +6,7 @@ import os
 from app.pipeline import process_pdf, classify_question_to_collection, process_image_query_with_gpt
 from app.tools import (
     OpenAIWrapper, MathTutorTool, LaTeXFormatterTool, MathResponseParser,
-    MathSolverTool, ExtractMathTool, RetrieveContextTool, SympySolveTool, HuggingFaceWrapper, ModelManager
+    MathSolverTool, ExtractMathTool, RetrieveContextTool, SympySolveTool,
 )
 from app.english_tools import EnglishTutorTool, TutorResponseAdapter
 from langchain.agents import initialize_agent, AgentType
