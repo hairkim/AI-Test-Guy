@@ -2,7 +2,6 @@ from langchain_postgres import PGVector
 import os
 from dotenv import load_dotenv
 from app.embeddingModels import MathBERTEmbeddings
-import torch
 
 
 load_dotenv()
@@ -10,15 +9,14 @@ vector_url = os.getenv("DATABASE_URL")
 retriever_cache = {}
 
 modelId = "tbs17/MathBERT-custom"
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
-embedding_model = MathBERTEmbeddings(model_id=modelId, device=device)
 
 def get_vectorstore(collection_name: str) -> PGVector:
     """
     Returns a PGVector store bound to a 'collection_name'.
     If the collection doesn't exist yet, it will be created on first insert.
     """
+    device = pick_device()
+    embedding_model = MathBERTEmbeddings(model_id=modelId, device=device)
     vectorstore = PGVector(
         embeddings=embedding_model,
         collection_name=collection_name,
@@ -44,7 +42,16 @@ def get_retriever_for_collection(collection: str):
         retriever_cache[coll_name] = retriever
     return retriever_cache[coll_name]
 
-
+def pick_device() -> str:
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "mps"
+    except Exception:
+        pass
+    return "cpu"
 
 #this is the openAI version
 # def get_retriever_for_collection(collection):

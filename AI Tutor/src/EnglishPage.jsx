@@ -23,6 +23,8 @@ export default function EnglishPage() {
 
         setIsLoading(true)
         try {
+            console.log("the question: " + question)
+            console.log("the passage: " + passage)
             const response = await fetch(`${BACKEND_URL}/ask_english`, {
                 method: "POST",
                 headers: {
@@ -39,7 +41,7 @@ export default function EnglishPage() {
             }
 
             const data = await response.json()
-            console.log("the data: " + data)
+            console.log("the data: " + JSON.stringify(data))
             if(data) {
                 setAnswer(data.answer || "No answer returned.")
                 setExplanation(data.why || "No explanation returned.")
