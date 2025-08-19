@@ -3,12 +3,12 @@ from app.models import EnhancedQuery, EnglishQuery
 from app.chain import get_retriever_for_collection
 from openai import OpenAI
 import os
-from app.pipeline import process_pdf, classify_question_to_collection, process_image_query_with_gpt
+from functools import lru_cache
 from app.tools import (
     OpenAIWrapper, MathTutorTool, LaTeXFormatterTool, MathResponseParser,
     MathSolverTool, ExtractMathTool, RetrieveContextTool, SympySolveTool,
 )
-from app.english_tools import EnglishTutorTool, TutorResponseAdapter
+from app.english_tools import EnglishTutorTool, TutorResponseAdapter, create_enhanced_tutor
 from langchain.agents import initialize_agent, AgentType
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import OutputParserException
@@ -19,25 +19,30 @@ router = APIRouter()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# model_manager = ModelManager()
-# model, tokenizer = model_manager.get_model_and_tokenizer()
-
-llm_wrapper = OpenAIWrapper(client)
-# llm = OpenAICompatibleLLM(openai_wrapper=llm_wrapper)
-# huggingface_wrapper = HuggingFaceWrapper(model, tokenizer)
-
-# Create tools
-math_solver = MathSolverTool(llm=llm_wrapper)
-latex_formatter = LaTeXFormatterTool(llm=llm_wrapper)
-# math_tutor = MathTutorTool(llm=huggingface_wrapper)
-parser = MathResponseParser()
-english_tutor = EnglishTutorTool(llm=llm_wrapper)
+@lru_cache(maxsize=1)
+def get_toolbox():
+    """Create tools once, lazily, in-process."""
+    llm_wrapper = OpenAIWrapper(client)
+    toolbox = {
+        "math_solver": MathSolverTool(llm=llm_wrapper),
+        "math_tutor":  MathTutorTool(llm=llm_wrapper),  
+        "latex_formatter": LaTeXFormatterTool(llm=llm_wrapper),
+        "parser": MathResponseParser(),
+        "english_tutor": create_enhanced_tutor(llm_wrapper, enable_ml=True),
+    }
+    return toolbox
 
 #this is the old ask question function
 @router.post("/ask")
 def ask_question(query: EnhancedQuery):
     """Simplified route - no agent, direct tool usage"""
     
+    #load all of the tools once
+    tb = get_toolbox()
+    math_solver       = tb["math_solver"]
+    math_tutor        = tb["math_tutor"]
+    latex_formatter   = tb["latex_formatter"]
+    parser            = tb["parser"]
     try:
         # print(f"The query: {query.model_dump()}")
         # Step 1: Process image and get question
@@ -179,22 +184,59 @@ def ask_question(query: EnhancedQuery):
 
 @router.post("/ask_english")
 def ask_english(query: EnglishQuery):
-    result = english_tutor.run(query.question, query.passage)
-    print(result)
-    # 2) Normalize to dict
-    if isinstance(result, dict):
-        data = result
-    else:
-        try:
-            data = json.loads(result)
-        except json.JSONDecodeError as e:
-            raise HTTPException(status_code=422, detail=f"Invalid JSON from model: {e.msg}")
-    try:
-        resp = TutorResponseAdapter.validate_python(data)
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"Response validation error: {e}")
+    """Enhanced SAT English question handler with comprehensive error handling"""
 
-    return resp
+    #load all of the tools once
+    tb = get_toolbox()
+    english_tutor     = tb["english_tutor"]
+
+    try:
+        print(f"Question: {query.question}")
+        print(f"Passage: {query.passage}")
+        # Use enhanced tutor
+        result = english_tutor._run(question=query.question, passage=query.passage)
+        print(f"Raw result: {result}")
+        
+        # Handle different result formats
+        if isinstance(result, dict):
+            data = result
+        elif isinstance(result, str):
+            try:
+                data = json.loads(result)
+            except json.JSONDecodeError as e:
+                print(f"JSON decode error: {e}")
+                print(f"Raw result was: {result}")
+                raise HTTPException(
+                    status_code=422, 
+                    detail=f"Invalid JSON response from model. Raw response: {result[:200]}..."
+                )
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unexpected result type: {type(result)}"
+            )
+        
+        # Validate against Pydantic model
+        try:
+            resp = TutorResponseAdapter.validate_python(data)
+            return resp
+        except Exception as e:
+            print(f"Validation error: {e}")
+            print(f"Data was: {data}")
+            raise HTTPException(
+                status_code=422,
+                detail=f"Response validation failed: {str(e)}"
+            )
+            
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        print(f"Unexpected error in ask_english: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 #this is /ask with agent
 #@router.post("/ask")
