@@ -11,12 +11,16 @@ import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
-import AdbIcon from '@mui/icons-material/Adb';
+import AdbIcon from '@mui/icons-material/Adb';  
+import { useAuth } from '../ClientStuff/AuthContext.jsx';
+import { useNavigate } from 'react-router-dom';
 
 const pages = ['Tests', 'Q/A', 'History'];
-const settings = ['Profile', 'Account', 'Dashboard', 'Logout'];
+const settings = ['Profile', 'Logout'];
 
 function ResponsiveAppBar() {
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
   const [anchorElNav, setAnchorElNav] = React.useState(null);
   const [anchorElUser, setAnchorElUser] = React.useState(null);
 
@@ -34,6 +38,18 @@ function ResponsiveAppBar() {
   const handleCloseUserMenu = () => {
     setAnchorElUser(null);
   };
+
+  const handleNavigation = async (page) => {
+    switch (page) {
+      case 'Profile':
+        navigate('/profile');
+        break;
+      case 'Logout':
+        await signOut();
+        navigate('/');
+        break;
+    }
+  }
 
   // TODO: add user authentication
   //flow:
@@ -152,7 +168,7 @@ function ResponsiveAppBar() {
             >
               {settings.map((setting) => (
                 <MenuItem key={setting} onClick={handleCloseUserMenu}>
-                  <Typography sx={{ textAlign: 'center' }}>{setting}</Typography>
+                  <Typography onClick={() => handleNavigation(setting)} sx={{ textAlign: 'center' }}>{setting}</Typography>
                 </MenuItem>
               ))}
             </Menu>

@@ -5,6 +5,7 @@ import QueryPage from './PageComponents/QueryPage.jsx'
 import TrainModel from './PageComponents/TrainModel.jsx'
 import HomePage from './PageComponents/HomePage.jsx'
 import Login from './PageComponents/Login.jsx'
+import Profile from './PageComponents/Profile.jsx'
 import { AuthProvider } from './ClientStuff/AuthContext.jsx'
 // import PlaceholderPage from './PlaceholderPage';
 
@@ -16,7 +17,7 @@ const App = () => {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<Login />} />
-        
+        <Route path="/profile" element={<Profile />} />
         <Route path="/query" element={<QueryPage />} />
         <Route path="/train" element={<TrainModel />} /> {/* this is TrainModel page */}
       </Routes>
