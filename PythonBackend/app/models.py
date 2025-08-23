@@ -1,14 +1,13 @@
 from pydantic import BaseModel, root_validator
 from sqlalchemy import Column, Integer, String, Text, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from .database import Base
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from typing import Optional
-import base64
-from PIL import Image
-import io
+from typing import Optional, Any, Dict
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.mutable import MutableDict
 
 class EnhancedQuery(BaseModel):
     question: Optional[str] = None
@@ -126,3 +125,113 @@ class QuestionEmbedding(Base):
     embedding = Column(Vector(768))
 
     question = relationship("Question", backref="embedding")
+
+class Passage(Base):
+    __tablename__ = "passages"
+
+    id = Column(Integer, primary_key=True)
+    dataset = Column(Text, nullable=False)           # e.g., 'MCTest'
+    split = Column(Text, nullable=False)             # 'train' | 'dev' | 'test'
+    story_id = Column(Text, nullable=False, unique=True)  # e.g., 'mc160.train.0'
+    text = Column(Text, nullable=False)              # full story text
+    meta = Column(JSONB, nullable=False, server_default="{}")
+
+    # children
+    questions = relationship(
+        "ReadingQuestion",
+        back_populates="passage",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    sentences = relationship(
+        "PassageSentence",
+        back_populates="passage",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="PassageSentence.sent_idx",
+    )
+
+    __table_args__ = (
+        Index("ix_passages_dataset_split", "dataset", "split"),
+    )
+
+
+class ReadingQuestion(Base):
+    __tablename__ = "reading_questions"
+
+    id = Column(Integer, primary_key=True)
+    passage_id = Column(Integer, ForeignKey("passages.id", ondelete="CASCADE"), nullable=False)
+    q_index = Column(Integer, nullable=False)  # 1..4 per story
+    question_text = Column(Text, nullable=False)
+    requires_multiple = Column(Boolean, nullable=False)  # from 'multiple:' vs 'one:'
+
+    passage = relationship("Passage", back_populates="questions")
+
+    choices = relationship(
+        "ReadingChoice",
+        back_populates="question",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="ReadingChoice.label",
+    )
+
+    # one-to-one
+    answer = relationship(
+        "ReadingAnswer",
+        back_populates="question",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
+    )
+
+    __table_args__ = (
+        UniqueConstraint("passage_id", "q_index", name="uq_readingq_passage_qindex"),
+        Index("ix_reading_questions_passage_qindex", "passage_id", "q_index"),
+    )
+
+
+class ReadingChoice(Base):
+    __tablename__ = "reading_choices"
+
+    id = Column(Integer, primary_key=True)
+    question_id = Column(Integer, ForeignKey("reading_questions.id", ondelete="CASCADE"), nullable=False)
+    label = Column(String(1), nullable=False)   # 'A'|'B'|'C'|'D'
+    text = Column(Text, nullable=False)
+
+    question = relationship("ReadingQuestion", back_populates="choices")
+
+    __table_args__ = (
+        UniqueConstraint("question_id", "label", name="uq_choice_question_label"),
+        CheckConstraint("label IN ('A','B','C','D')", name="ck_choice_label_abcd"),
+    )
+
+
+class ReadingAnswer(Base):
+    __tablename__ = "reading_answers"
+
+    # question_id is the PK (one answer per question)
+    question_id = Column(Integer, ForeignKey("reading_questions.id", ondelete="CASCADE"), primary_key=True)
+    label = Column(String(1), nullable=False)  # 'A'|'B'|'C'|'D'
+
+    question = relationship("ReadingQuestion", back_populates="answer")
+
+    __table_args__ = (
+        CheckConstraint("label IN ('A','B','C','D')", name="ck_answer_label_abcd"),
+    )
+
+
+class PassageSentence(Base):
+    __tablename__ = "passage_sentences"
+
+    id = Column(Integer, primary_key=True)
+    passage_id = Column(Integer, ForeignKey("passages.id", ondelete="CASCADE"), nullable=False)
+    sent_idx = Column(Integer, nullable=False)      # 1-based line number
+    sent_text = Column(Text, nullable=False)
+
+    passage = relationship("Passage", back_populates="sentences")
+
+    __table_args__ = (
+        UniqueConstraint("passage_id", "sent_idx", name="uq_sentence_passage_idx"),
+        Index("ix_passage_sentences_passage_idx", "passage_id", "sent_idx"),
+    )
+    

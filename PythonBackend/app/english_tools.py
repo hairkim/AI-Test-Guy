@@ -595,6 +595,8 @@ Make sure to not add any unneccessary text or ``` marks.
         
         # Get type-specific guidance
         analysis_instructions = self._get_analysis_instructions(analysis['question_type'])
+        print("question type: " + analysis['question_type'])
+        print("info needed: " + analysis['info_needed'])
         
         # Enhanced prompt that works for all question types
         prompt = f"""You are analyzing a reading comprehension question. Read carefully and think critically.
@@ -649,7 +651,8 @@ Make sure to not add any unneccessary text or ``` marks.
     - Look for implied meanings and logical conclusions
     - Connect evidence to reach reasonable conclusions
     - Consider what the author suggests but doesn't explicitly state
-    - Look for patterns, cause-and-effect relationships, or logical next steps""",
+    - Look for patterns, cause-and-effect relationships, or logical next steps
+    - Use context clues to understand the author's intent/claims""",
             
             "function": """
     - Analyze the purpose or role of specific elements (words, phrases, paragraphs)
@@ -667,7 +670,8 @@ Make sure to not add any unneccessary text or ``` marks.
     - Find the most specific and relevant text that supports a claim
     - Look for direct quotes or clear examples
     - Choose evidence that most strongly supports the point being made
-    - Avoid vague or tangentially related information""",
+    - Avoid vague or tangentially related information
+    - Pay close attention to detail and only use context from the passage to support your claim""",
             
             "vocabulary_in_context": """
     - Use context clues from surrounding sentences

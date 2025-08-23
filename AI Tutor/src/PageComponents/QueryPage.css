@@ -1,5 +1,5 @@
-.button-container {
+.buttons {
     display: flex;
     justify-content: space-evenly;
-    margin-bottom: 20px;
+    margin: 2rem 0;
 }
