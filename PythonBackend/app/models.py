@@ -1,5 +1,5 @@
 from pydantic import BaseModel, root_validator
-from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Index, Boolean, UniqueConstraint, CheckConstraint, DateTime
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from .database import Base
 from pgvector.sqlalchemy import Vector
@@ -8,6 +8,7 @@ import uuid
 from typing import Optional, Any, Dict
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableDict
+from datetime import datetime
 
 class EnhancedQuery(BaseModel):
     question: Optional[str] = None
@@ -234,4 +235,150 @@ class PassageSentence(Base):
         UniqueConstraint("passage_id", "sent_idx", name="uq_sentence_passage_idx"),
         Index("ix_passage_sentences_passage_idx", "passage_id", "sent_idx"),
     )
+
+
+class SATQuestion(Base):
+    """
+    Optimized model for OpenSAT dataset questions
+    Simpler structure than your existing Question model
+    """
+    __tablename__ = "sat_questions"
+    
+    id = Column(String, primary_key=True)  # Use the original ID from dataset
+    section = Column(String, nullable=False)  # "Math" or "English"
+    domain = Column(String, nullable=False)  # "Advanced Math", "Information and Ideas", etc.
+    difficulty = Column(String, nullable=False)  # "Easy", "Medium", "Hard"
+    
+    question_text = Column(Text, nullable=False)
+    paragraph = Column(Text)  # For reading comprehension questions
+    
+    choice_a = Column(Text, nullable=False)
+    choice_b = Column(Text, nullable=False) 
+    choice_c = Column(Text, nullable=False)
+    choice_d = Column(Text, nullable=False)
+    
+    correct_answer = Column(String(1), nullable=False)  # A, B, C, or D
+    explanation = Column(Text, nullable=False)
+    visual_type = Column(String)  # If there are visual elements
+    
+    # Relationships
+    mock_exam_questions = relationship("MockExamQuestion", back_populates="sat_question")
+    sat_embeddings = relationship("SATQuestionEmbedding", back_populates="sat_question")
+
+    # Database indexes for performance
+    __table_args__ = (
+        Index("ix_sat_questions_section", "section"),
+        Index("ix_sat_questions_difficulty", "difficulty"), 
+        Index("ix_sat_questions_domain", "domain"),
+        Index("ix_sat_questions_section_difficulty", "section", "difficulty"),  # Composite index
+        Index("ix_sat_questions_section_domain", "section", "domain"),  # Composite index
+        Index("ix_sat_questions_paragraph_not_null", "section", "difficulty", 
+              postgresql_where="paragraph IS NOT NULL"),  # Partial index for passage-based questions
+    )
+
+    def to_dict(self):
+        """Convert to dict for API responses"""
+        return {
+            "id": self.id,
+            "section": self.section,
+            "domain": self.domain,
+            "difficulty": self.difficulty,
+            "question_text": self.question_text,
+            "paragraph": self.paragraph,
+            "choices": {
+                "A": self.choice_a,
+                "B": self.choice_b, 
+                "C": self.choice_c,
+                "D": self.choice_d
+            },
+            "correct_answer": self.correct_answer,
+            "explanation": self.explanation
+        }
+
+
+class SATQuestionEmbedding(Base):
+    """Embeddings for SAT questions for similarity search"""
+    __tablename__ = "sat_question_embeddings"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    question_id = Column(String, ForeignKey("sat_questions.id", ondelete="CASCADE"))
+    text = Column(Text)
+    embedding = Column(Vector(768))  # MathBERT embedding size
+    
+    sat_question = relationship("SATQuestion", back_populates="sat_embeddings")
+
+
+class MockExam(Base):
+    """Mock exam instances for users"""
+    __tablename__ = "mock_exams"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String)  # For when you add user accounts
+    exam_type = Column(String, nullable=False)  # "full_sat", "math_only", "english_only"
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime)
+    completed_at = Column(DateTime)
+    
+    # Calculated fields
+    total_questions = Column(Integer)
+    correct_answers = Column(Integer)
+    score = Column(Integer)  # Scaled score (200-800)
+    time_spent_minutes = Column(Integer)
+    
+    # Exam configuration
+    config = Column(JSONB, default={})  # Store difficulty mix, section weights, etc.
+    
+    # Relationships
+    questions = relationship("MockExamQuestion", back_populates="mock_exam", cascade="all, delete-orphan")
+
+    @property 
+    def percentage_correct(self):
+        if not self.total_questions:
+            return 0
+        return (self.correct_answers / self.total_questions) * 100
+
+
+class MockExamQuestion(Base):
+    """Junction table linking mock exams to specific questions"""
+    __tablename__ = "mock_exam_questions"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    mock_exam_id = Column(UUID(as_uuid=True), ForeignKey("mock_exams.id", ondelete="CASCADE"))
+    sat_question_id = Column(String, ForeignKey("sat_questions.id", ondelete="CASCADE"))
+    
+    question_order = Column(Integer)  # Order within the exam
+    user_answer = Column(String(1))  # A, B, C, D, or null if not answered
+    is_correct = Column(Boolean)
+    time_spent_seconds = Column(Integer)
+    
+    # Relationships
+    mock_exam = relationship("MockExam", back_populates="questions")
+    sat_question = relationship("SATQuestion", back_populates="mock_exam_questions")
+
+
+# Optional: Keep track of user performance over time
+class UserPerformance(Base):
+    """Track user performance across different domains/difficulties"""
+    __tablename__ = "user_performance"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String, nullable=False)
+    
+    # Performance metrics by category
+    section = Column(String)  # "Math" or "English" 
+    domain = Column(String)   # "Advanced Math", "Information and Ideas", etc.
+    difficulty = Column(String)  # "Easy", "Medium", "Hard"
+    
+    questions_attempted = Column(Integer, default=0)
+    questions_correct = Column(Integer, default=0)
+    average_time_seconds = Column(Integer)
+    
+    last_updated = Column(DateTime, default=datetime.utcnow)
+    
+    @property
+    def accuracy_rate(self):
+        if not self.questions_attempted:
+            return 0
+        return (self.questions_correct / self.questions_attempted) * 100
     
