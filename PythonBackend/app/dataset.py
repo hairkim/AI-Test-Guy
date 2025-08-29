@@ -1,4 +1,4 @@
-from app.database import SessionLocal
+from app.database import SessionLocal, Base
 from app.models import Question, Solution, Exam, Section, QuestionEmbedding, SATQuestion, SATQuestionEmbedding
 from app.embeddingModels import MathBERTEmbeddings, get_mpnet_embeddings
 from app.chain import get_vectorstore
@@ -279,7 +279,6 @@ def import_csv_to_database(csv_path: str = "sat_questions_cleaned.csv"):
 
 def verify_import():
     """Verify the import worked correctly"""
-    db = SessionLocal()
     
     try:
         # Check question counts by section
@@ -309,45 +308,10 @@ def verify_import():
     finally:
         db.close()
 
-def verify_import():
-    """Verify the import worked correctly"""
-    db = SessionLocal()
-    
-    try:
-        # Check question counts by section
-        math_count = db.query(SATQuestion).filter_by(section="Math").count()
-        english_count = db.query(SATQuestion).filter_by(section="English").count()
-        
-        print(f"\n📊 Database Contents:")
-        print(f"   • Math questions: {math_count}")
-        print(f"   • English questions: {english_count}")
-        print(f"   • Total questions: {math_count + english_count}")
-        
-        # Show sample questions
-        print(f"\n📝 Sample Questions:")
-        
-        math_sample = db.query(SATQuestion).filter_by(section="Math").first()
-        if math_sample:
-            print(f"   Math: {math_sample.question_text[:100]}...")
-        
-        english_sample = db.query(SATQuestion).filter_by(section="English").first()
-        if english_sample:
-            print(f"   English: {english_sample.question_text[:100]}...")
-            
-        # Check embeddings
-        embedding_count = db.query(SATQuestionEmbedding).count()
-        print(f"   • Total embeddings: {embedding_count}")
-        
-    finally:
-        db.close()
 
 
 def setup_complete_database():
     """Set up both your app tables AND LangChain vector tables"""
-    
-    # 1. Create your application tables first
-    from app.models import Base, SATQuestion, MockExam  # Import your models
-    from app.database import engine
     
     print("Creating application tables...")
     Base.metadata.create_all(bind=engine)

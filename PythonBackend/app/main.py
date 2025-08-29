@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import router
+from app.sat_routes import sat_router
 from dotenv import load_dotenv
 import os
 
@@ -21,3 +22,4 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(sat_router)

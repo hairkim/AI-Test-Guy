@@ -6,6 +6,7 @@ import TrainModel from './PageComponents/TrainModel.jsx'
 import HomePage from './PageComponents/HomePage.jsx'
 import Login from './PageComponents/Login.jsx'
 import Profile from './PageComponents/Profile.jsx'
+import MathTestPage from './PageComponents/MathTestPage.jsx'
 import { AuthProvider } from './ClientStuff/AuthContext.jsx'
 // import PlaceholderPage from './PlaceholderPage';
 
@@ -20,6 +21,7 @@ const App = () => {
         <Route path="/profile" element={<Profile />} />
         <Route path="/query" element={<QueryPage />} />
         <Route path="/train" element={<TrainModel />} /> {/* this is TrainModel page */}
+        <Route path="/math_test" element={<MathTestPage /> } />
       </Routes>
       </AuthProvider>
     </Router>
