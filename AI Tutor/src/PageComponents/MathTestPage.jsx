@@ -19,6 +19,7 @@ export default function MathTestPage() {
     const [questions, setQuestions] = useState([])
     const [testState, setTestState] = useState("idle")
     const [currentIndex, setCurrentIndex] = useState(0)
+    const [userAnswer, setUserAnswer] = useState({})
 
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
@@ -58,6 +59,15 @@ export default function MathTestPage() {
         setCurrentIndex(currentIndex - 1)
     }
 
+    const handleAnswerSelect = (questionId, answer) => {
+        console.log("Question ID:", questionId)
+        console.log("Selected Answer:", answer)
+        setUserAnswer(prev => ({
+            ...prev,
+            [questionId]: answer
+        }))
+    }
+
 
     return (
         <div className='main_container'>
@@ -74,7 +84,7 @@ export default function MathTestPage() {
             )}
             {testState === 'active' && (
                 <div className="test_page">
-                    <SatQuestion key={questions[currentIndex].id} question={questions[currentIndex]} index={currentIndex + 1} />
+                    <SatQuestion key={questions[currentIndex].id} question={questions[currentIndex]} index={currentIndex + 1} selectedAnswer={userAnswer[questions[currentIndex].id]} handleAnswerSelect={(questionId, answer) => handleAnswerSelect(questionId, answer)} />
                     <div className="button_container">
                         <button onClick={() => selectPreviousQuestion()}>Previous</button>
                         <button onClick={() => selectNextQuestion()}>Next</button>

@@ -105,6 +105,7 @@
     font-size: 16px;
     line-height: 1.4;
     flex: 1;
+    color: black;
 }
 
 .selected-answer {

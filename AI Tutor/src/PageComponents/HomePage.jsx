@@ -15,8 +15,8 @@ export default function HomePage() {
                 <h1>Welcome {user?.user_metadata?.display_name}</h1>
             )}
             <div className="button-container">
-                <button onClick={() => navigateWithAuth('/math')}>Math</button>
-                <button onClick={() => navigateWithAuth('/english')}>English</button>
+                <button onClick={() => navigateWithAuth('/math_test')}>Take a Math Test</button>
+                <button onClick={() => navigateWithAuth('/english_test')}>Take an English Test</button>
             </div>
         </div>
     )

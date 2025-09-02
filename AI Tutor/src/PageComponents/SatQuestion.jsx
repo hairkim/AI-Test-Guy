@@ -6,26 +6,38 @@
 import React, { useState } from 'react'
 import PropTypes from 'prop-types'
 import './SatQuestion.css'
+import { InlineMath } from 'react-katex';
 
-export default function SatQuestion({ question, index }) {
-    const [selectedAnswer, setSelectedAnswer] = useState(null)
+export default function SatQuestion({ question, index, selectedAnswer, handleAnswerSelect }) {
 
-    const handleAnswerSelect = (answer) => {
-        setSelectedAnswer(answer)
+    const onChoiceClick = (answer) => {
+        console.log("Selected answer: " + answer)
+        handleAnswerSelect(question.id, answer)
+    }
+
+
+    const parseText = (text) => {
+        return text.split(/(\$[^$]*\$)/g).map((part, i) =>
+            part.startsWith('$') && part.endsWith('$') ? (
+            <InlineMath key={i} math={part.slice(1, -1)} />
+            ) : (
+            <span key={i}>{part}</span>
+            )
+        )
     }
 
     return (
         <div className="sat-question">
             <div className="question-number">{index}.</div>
             {question.paragraph && <p className="paragraph">{question.paragraph}</p>}
-            <p className="question-text">{question.question_text}</p>
+            <p className="question-text">{parseText(question.question_text)}</p>
             
             <div className="choices-container">
                 {Object.entries(question.choices).map(([key, value]) => (
                     <div 
                         key={key}
                         className={`choice-item ${selectedAnswer === key ? 'selected' : ''}`}
-                        onClick={() => handleAnswerSelect(key)}
+                        onClick={() => onChoiceClick(key)}
                     >
                         <div className="bubble">
                             <div className="bubble-inner">
@@ -33,7 +45,7 @@ export default function SatQuestion({ question, index }) {
                             </div>
                             <span className="choice-letter">{key}</span>
                         </div>
-                        <span className="choice-text">{value}</span>
+                        <span className="choice-text">{parseText(value)}</span>
                     </div>
                 ))}
             </div>
@@ -47,4 +59,7 @@ export default function SatQuestion({ question, index }) {
 
 SatQuestion.propTypes = {
     question: PropTypes.object.isRequired,
+    index: PropTypes.number.isRequired,
+    selectedAnswer: PropTypes.string,
+    handleAnswerSelect: PropTypes.func.isRequired,
 }
