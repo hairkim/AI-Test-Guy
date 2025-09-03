@@ -1,85 +1,27 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
-import random
+from sqlalchemy import func
+from typing import List, Optional
 
 from app.database import get_db
 from app.models import SATQuestion, MockExam, MockExamQuestion
+from app.sat_route_helpers import (
+    generate_section_questions,
+    get_difficulty_distribution,
+    questions_to_response,
+    get_module_questions,
+    determine_module2_difficulty_points,
+    generate_module2_questions,
+    QuestionResponse,
+    QuestionWithAnswer,
+    MockExamRequest,
+    MockExamResponse,
+    SubmitTestRequest,
+    SubmitTestResponse
+)
 
 # Create router
 sat_router = APIRouter(prefix="/api/sat", tags=["SAT Questions"])
-
-# Pydantic models for request/response
-class QuestionResponse(BaseModel):
-    id: str
-    section: str
-    domain: str
-    difficulty: str
-    question_text: str
-    paragraph: Optional[str]
-    choices: Dict[str, str]
-    # Don't include correct_answer in response for active tests
-    
-class QuestionWithAnswer(QuestionResponse):
-    correct_answer: str
-    explanation: str
-
-class MockExamRequest(BaseModel):
-    exam_type: str = Field(..., description="math_only, english_only, or full_sat")
-    difficulty_mix: Optional[Dict[str, int]] = None
-    user_id: Optional[str] = None
-
-class MockExamResponse(BaseModel):
-    exam_id: str
-    exam_type: str
-    total_questions: int
-    questions: List[QuestionResponse]
-    time_limit_minutes: int
-
-# Utility functions
-def get_difficulty_distribution(exam_type: str, custom_mix: Optional[Dict[str, int]] = None) -> Dict[str, int]:
-    """Get realistic difficulty distribution for different exam types"""
-    
-    if custom_mix:
-        return custom_mix
-    
-    if exam_type == "math_only":
-        return {"Easy": 15, "Medium": 30, "Hard": 13}  # Total: 58 (real SAT math)
-    elif exam_type == "english_only":
-        return {"Easy": 12, "Medium": 30, "Hard": 10}  # Total: 52 (real SAT english)
-    elif exam_type == "full_sat":
-        return {"Easy": 27, "Medium": 60, "Hard": 23}  # Total: 110 (full SAT)
-    else:
-        return {"Easy": 5, "Medium": 10, "Hard": 5}    # Default practice
-
-def questions_to_response(questions: List[SATQuestion], include_answers: bool = False) -> List[Dict]:
-    """Convert database questions to API response format"""
-    result = []
-    for q in questions:
-        question_data = {
-            "id": q.id,
-            "section": q.section,
-            "domain": q.domain,
-            "difficulty": q.difficulty,
-            "question_text": q.question_text,
-            "paragraph": q.paragraph,
-            "choices": {
-                "A": q.choice_a,
-                "B": q.choice_b,
-                "C": q.choice_c,
-                "D": q.choice_d
-            }
-        }
-        
-        if include_answers:
-            question_data["correct_answer"] = q.correct_answer
-            question_data["explanation"] = q.explanation
-            
-        result.append(question_data)
-    
-    return result
 
 # API Routes
 
@@ -107,7 +49,7 @@ def get_random_questions(
     if not questions:
         raise HTTPException(status_code=404, detail="No questions found matching criteria")
     
-    return questions_to_response(questions, include_answers=False)
+    return questions_to_response(questions, include_answers=True)
 
 @sat_router.post("/mock-exam/generate", response_model=MockExamResponse)
 def generate_mock_exam(
@@ -121,7 +63,7 @@ def generate_mock_exam(
     
     # Generate questions based on exam type
     if request.exam_type in ["math_only", "full_sat"]:
-        math_questions = generate_section_questions(db, "Math", difficulty_mix)
+        math_questions = generate_section_questions(db, "Math", difficulty_mix) #returns List[SATQuestion]
         all_questions.extend(math_questions)
     
     if request.exam_type in ["english_only", "full_sat"]:
@@ -133,6 +75,8 @@ def generate_mock_exam(
         exam_type=request.exam_type,
         user_id=request.user_id,
         total_questions=len(all_questions),
+        module1_questions=[question.id for question in all_questions],
+        
         config={"difficulty_mix": difficulty_mix}
     )
     db.add(mock_exam)
@@ -159,34 +103,11 @@ def generate_mock_exam(
     return MockExamResponse(
         exam_id=str(mock_exam.id),
         exam_type=request.exam_type,
+        module=1,
         total_questions=len(all_questions),
-        questions=questions_to_response(all_questions, include_answers=False),
+        questions=questions_to_response(all_questions, include_answers=True), #type List[QuestionResponse]
         time_limit_minutes=time_limits.get(request.exam_type, 60)
     )
-
-def generate_section_questions(db: Session, section: str, difficulty_mix: Dict[str, int]) -> List[SATQuestion]:
-    """Generate questions for a specific section with difficulty distribution"""
-    
-    questions = []
-    
-    for difficulty, count in difficulty_mix.items():
-        section_questions = db.query(SATQuestion)\
-            .filter(and_(
-                SATQuestion.section == section,
-                SATQuestion.difficulty == difficulty
-            ))\
-            .order_by(func.random())\
-            .limit(count)\
-            .all()
-        
-        if len(section_questions) < count:
-            # If we don't have enough questions of this difficulty, get what we can
-            available = len(section_questions)
-            print(f"Warning: Only {available} {difficulty} {section} questions available, requested {count}")
-        
-        questions.extend(section_questions)
-    
-    return questions
 
 @sat_router.get("/mock-exam/{exam_id}", response_model=MockExamResponse)
 def get_mock_exam(exam_id: str, db: Session = Depends(get_db)):
@@ -209,6 +130,7 @@ def get_mock_exam(exam_id: str, db: Session = Depends(get_db)):
     return MockExamResponse(
         exam_id=exam_id,
         exam_type=mock_exam.exam_type,
+        module=mock_exam.module,
         total_questions=len(questions),
         questions=questions_to_response(questions, include_answers=False),
         time_limit_minutes=time_limits.get(mock_exam.exam_type, 60)
@@ -332,3 +254,79 @@ def generate_adaptive_mock_exam(
         questions=questions_to_response(all_questions, include_answers=False),
         time_limit_minutes=time_limits.get(exam_type, 60)
     )
+
+
+@sat_router.post("/submit_test/{module_number}")
+def submit_test(module_number: int, request: SubmitTestRequest, db: Session = Depends(get_db)):
+    """Submit a mock exam"""
+    exam = db.query(MockExam).filter(MockExam.id == request.exam_id).first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+    
+    questions = get_module_questions(db, exam, module_number)
+
+    #count how many questions were correct
+    correct_count = 0
+    module_results = []
+    for exam_question in questions:
+        user_answer = request.answers.get(exam_question.sat_question_id)
+        sat_question = db.query(SATQuestion).filter_by(id=exam_question.sat_question_id).first()
+        
+        is_correct = user_answer == sat_question.correct_answer
+        exam_question.user_answer = user_answer
+        exam_question.is_correct = is_correct
+
+        if module_number == 1:
+            module_results.append({
+                'is_correct': is_correct,
+                'difficulty': sat_question.difficulty
+            })
+        
+        if is_correct:
+            correct_count += 1
+
+    if module_number == 1:
+        exam.module1_completed = True
+        exam.module1_correct = correct_count
+        exam.module1_total = len(questions)
+
+        difficulty_level = determine_module2_difficulty_points(module_results)
+
+        # Generate module 2 questions
+        module2_questions = generate_module2_questions(db, exam, difficulty_level)
+        
+        # Create MockExamQuestion records for module 2
+        current_order = max([eq.question_order for eq in exam.questions]) + 1
+        module2_exam_questions = []
+        
+        for question in module2_questions:
+            mock_exam_question = MockExamQuestion(
+                mock_exam_id=exam.id,
+                sat_question_id=question.id,
+                question_order=current_order
+            )
+            db.add(mock_exam_question)
+            module2_exam_questions.append(mock_exam_question)
+            current_order += 1
+        
+        db.commit()
+        
+        # After commit, the MockExamQuestion objects will have their relationships loaded
+        # Convert the SATQuestion objects (accessed via relationship) to response format
+        module2_sat_questions = [meq.sat_question for meq in module2_exam_questions]
+        
+        return {
+            "module": module_number,
+            "correct": correct_count,
+            "total": len(module2_sat_questions),
+            "percentage": (correct_count / len(module2_sat_questions)) * 100,
+            "module2_difficulty": difficulty_level,
+            "module2_questions": questions_to_response(module2_sat_questions, include_answers=True),
+            "message": f"Module 1 complete. Module 2 will be {'more challenging' if difficulty_level == 'higher' else 'easier'}."
+        }
+    elif module_number == 2:
+        print('module2')
+    else:
+        raise HTTPException(status_code=400, detail="Invalid module number. Must be 1 or 2.")
+    
+    

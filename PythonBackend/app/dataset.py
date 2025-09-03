@@ -1,4 +1,4 @@
-from app.database import SessionLocal, Base
+from app.database import SessionLocal, Base, engine
 from app.models import Question, Solution, Exam, Section, QuestionEmbedding, SATQuestion, SATQuestionEmbedding
 from app.embeddingModels import MathBERTEmbeddings, get_mpnet_embeddings
 from app.chain import get_vectorstore
@@ -324,13 +324,13 @@ def setup_complete_database():
 
 
 setup_complete_database()
-try:
-    import_csv_to_database(csv_path)
-except Exception as e:
-    print(f"❌ Import failed: {e}")
-    exit(1)
+# try:
+#     import_csv_to_database(csv_path)
+# except Exception as e:
+#     print(f"❌ Import failed: {e}")
+#     exit(1)
     
-verify_import()
+# verify_import()
 
 
 

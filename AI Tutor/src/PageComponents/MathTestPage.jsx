@@ -20,6 +20,8 @@ export default function MathTestPage() {
     const [testState, setTestState] = useState("idle")
     const [currentIndex, setCurrentIndex] = useState(0)
     const [userAnswer, setUserAnswer] = useState({})
+    const [module, setModule] = useState(1)
+    const [examId, setExamId] = useState(null)
 
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
@@ -37,6 +39,9 @@ export default function MathTestPage() {
         })
             const data = await response.json()
             setQuestions(data.questions)
+            setExamId(data.exam_id)
+            setModule(1)
+            setCurrentIndex(0)
             console.log("fetching worked, showing some questions: " + data.questions[0].question_text)
             setTestState("active")
         } catch (error) {
@@ -68,6 +73,52 @@ export default function MathTestPage() {
         }))
     }
 
+    const submitTest = async() => {
+        if (!examId) {
+            console.error("No exam ID found")
+            return
+        }
+        console.log("submitting test")
+        setTestState("loading")
+        
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/sat/submit_test/${module}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    exam_id: examId,
+                    answers: userAnswer,
+                    module: module
+                })
+            })
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json()
+            console.log("Submit response:", data)
+
+            if (module === 1) {
+                // Module 1 completed - load module 2
+                setQuestions(data.module2_questions) // Load module 2 questions
+                setModule(2)
+                setCurrentIndex(0)
+                setUserAnswer({}) // Reset answers for module 2
+                setTestState("module2_active")
+            } else {
+                // Module 2 completed - show final results
+                setTestState("completed")
+            }
+
+        } catch (error) {
+            console.error("Error submitting test:", error)
+            setTestState("error")
+        }
+    }
+
 
     return (
         <div className='main_container'>
@@ -82,13 +133,16 @@ export default function MathTestPage() {
                     </button>
                 </div>
             )}
-            {testState === 'active' && (
+            {(testState === 'active' || testState === 'module2_active') && (
                 <div className="test_page">
                     <SatQuestion key={questions[currentIndex].id} question={questions[currentIndex]} index={currentIndex + 1} selectedAnswer={userAnswer[questions[currentIndex].id]} handleAnswerSelect={(questionId, answer) => handleAnswerSelect(questionId, answer)} />
                     <div className="button_container">
                         <button onClick={() => selectPreviousQuestion()}>Previous</button>
                         <button onClick={() => selectNextQuestion()}>Next</button>
                     </div>
+                    <div className='submit_container'>
+                        <button onClick={submitTest}>Submit</button>
+                    </div>   
                 </div>
             )}
         </div>

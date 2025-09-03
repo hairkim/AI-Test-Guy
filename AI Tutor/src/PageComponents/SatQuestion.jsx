@@ -3,7 +3,7 @@
 //thought process: have a prop that represents the sat question object for this component
 //how to track score? have a state variable that is updated when the user answers the question
 
-import React, { useState } from 'react'
+import React from 'react'
 import PropTypes from 'prop-types'
 import './SatQuestion.css'
 import { InlineMath } from 'react-katex';
@@ -49,7 +49,7 @@ export default function SatQuestion({ question, index, selectedAnswer, handleAns
                     </div>
                 ))}
             </div>
-            
+            {question.correct_answer && <p className="correct-answer">Correct Answer: {question.correct_answer}</p>}
             {selectedAnswer && (
                 <p className="selected-answer">Selected Answer: {selectedAnswer}</p>
             )}
