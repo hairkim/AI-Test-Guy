@@ -42,6 +42,9 @@ class SubmitTestRequest(BaseModel):
 class SubmitTestResponse(BaseModel):
     score: int
 
+def round_to_nearest_10(x):
+    return int(round(x / 10.0) * 10)
+
 
 def generate_section_questions(db: Session, section: str, difficulty_mix: Dict[str, int]) -> List[SATQuestion]:
     """Generate questions for a specific section with difficulty distribution"""
@@ -204,3 +207,18 @@ def generate_module2_questions(db: Session, exam: MockExam, difficulty_level: st
         questions.extend(english_questions)
     
     return questions
+
+
+def score_exam(exam: MockExam) -> (int, int):
+    """Score a mock exam based on module 1 and module 2 performance"""
+    module1_score = exam.module1_correct
+    module2_score = exam.module2_correct
+    
+    combinedScore = module1_score + module2_score
+
+    if(exam.module1_difficulty_assigned == "lower"):
+        score = round_to_nearest_10( 200 + (combinedScore/44) * (690 - 200) )
+    else:
+        score = round_to_nearest_10( 300 + (combinedScore/44) * (800 - 300) )
+    
+    return score, combinedScore

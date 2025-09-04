@@ -12,6 +12,7 @@ from app.sat_route_helpers import (
     get_module_questions,
     determine_module2_difficulty_points,
     generate_module2_questions,
+    score_exam,
     QuestionResponse,
     QuestionWithAnswer,
     MockExamRequest,
@@ -293,7 +294,9 @@ def submit_test(module_number: int, request: SubmitTestRequest, db: Session = De
         difficulty_level = determine_module2_difficulty_points(module_results)
 
         # Generate module 2 questions
-        module2_questions = generate_module2_questions(db, exam, difficulty_level)
+        module2_questions = generate_module2_questions(db, exam, difficulty_level) #returns List[SATQuestion]
+        print("submit test in module 2 the length of questions for module 2: " + str(len(module2_questions)))
+        exam.module2_questions=[question.id for question in module2_questions]
         
         # Create MockExamQuestion records for module 2
         current_order = max([eq.question_order for eq in exam.questions]) + 1
@@ -326,6 +329,22 @@ def submit_test(module_number: int, request: SubmitTestRequest, db: Session = De
         }
     elif module_number == 2:
         print('module2')
+        #will return score based on this metric:
+        #let C be number of correct answers
+        #score_easy = round_to_nearest_10( 200 + (C/44) * (690 - 200) )
+        #score_hard = round_to_nearest_10( 300 + (C/44) * (800 - 300) )
+
+        exam.module2_completed = True
+        exam.module2_correct = correct_count
+        exam.module2_total = len(questions)
+
+        exam.score, total_correct = score_exam(exam)
+        db.commit()
+        return {
+            "score": exam.score,
+            "percentage": (total_correct / 44) * 100
+        }
+
     else:
         raise HTTPException(status_code=400, detail="Invalid module number. Must be 1 or 2.")
     

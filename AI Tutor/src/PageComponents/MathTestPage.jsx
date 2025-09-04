@@ -22,11 +22,14 @@ export default function MathTestPage() {
     const [userAnswer, setUserAnswer] = useState({})
     const [module, setModule] = useState(1)
     const [examId, setExamId] = useState(null)
+    const [score, setScore] = useState(null)
+    const [percentage, setPercentage] = useState(null)
 
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
     const startTest = async () => {
         setTestState("loading")
+        setUserAnswer({})
         try {
             const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/generate`, {
                 method: 'POST',
@@ -110,6 +113,8 @@ export default function MathTestPage() {
                 setTestState("module2_active")
             } else {
                 // Module 2 completed - show final results
+                setScore(data.score)
+                setPercentage(data.percentage)
                 setTestState("completed")
             }
 
@@ -143,6 +148,14 @@ export default function MathTestPage() {
                     <div className='submit_container'>
                         <button onClick={submitTest}>Submit</button>
                     </div>   
+                </div>
+            )}
+            {(testState === 'completed' && score !== null && percentage !== null) && (
+                <div className="results_page">
+                    <h1>Test Results</h1>
+                    <p>Score: {score}</p>
+                    <p>Percentage: {percentage}</p>
+                    <button onClick={startTest}>Retake Test</button>
                 </div>
             )}
         </div>

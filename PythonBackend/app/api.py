@@ -14,6 +14,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.schema import OutputParserException
 import json
 from typing import Optional
+from app.pipeline import process_image_query_with_gpt, classify_question_to_collection
 
 router = APIRouter()
 
