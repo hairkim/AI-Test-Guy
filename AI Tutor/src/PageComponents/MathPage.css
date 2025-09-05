@@ -1,0 +1,19 @@
+.start_page {
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 12.5vw;
+}
+
+.main_container {
+    width: 100vw;
+}
+
+.button_container {
+    display: flex;
+    justify-content: space-between;  /* Align buttons evenly across the width */
+    width: 40%;  /* Ensure it takes full width */
+    margin-top: 20px;
+    margin-left: 29vw;
+}

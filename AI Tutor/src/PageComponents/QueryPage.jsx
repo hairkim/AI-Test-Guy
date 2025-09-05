@@ -1,6 +1,6 @@
 import {React, useState} from 'react'
 import QuestionsPage from './QuestionsPage.jsx'
-import './HomePage.css'
+import './QueryPage.css'
 import EnglishPage from './EnglishPage.jsx'
 
 export default function HomePage() {
@@ -11,7 +11,7 @@ export default function HomePage() {
     //english is TBD
     return (
         <div>
-            <div className='button-container'>
+            <div className='buttons'>
                 <button onClick={() => setPage("math")}>Math</button>
                 <button onClick={() => setPage("english")}>English</button>
             </div>
