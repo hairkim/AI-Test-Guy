@@ -13,9 +13,11 @@ import React, { useState } from 'react'
 import './MathPage.css'
 import AppHeader from './AppHeader.jsx'
 import SatQuestion from './SatQuestion.jsx'
+import { useAuth } from '../ClientStuff/AuthContext.jsx';
 
 
 export default function MathTestPage() {
+    const { user } = useAuth();
     const [questions, setQuestions] = useState([])
     const [testState, setTestState] = useState("idle")
     const [currentIndex, setCurrentIndex] = useState(0)
@@ -37,7 +39,8 @@ export default function MathTestPage() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                exam_type: 'math_only'
+                exam_type: 'math_only',
+                user_id: user.id
             })
         })
             const data = await response.json()

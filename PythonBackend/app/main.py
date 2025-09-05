@@ -1,9 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import router
 from app.sat_routes import sat_router
 from dotenv import load_dotenv
 import os
+from app.auth import get_current_user
 
 load_dotenv()
 
@@ -23,3 +24,7 @@ app.add_middleware(
 
 app.include_router(router)
 app.include_router(sat_router)
+
+@app.get("/protected")
+def protected_route(user = Depends(get_current_user)):
+    return {"user_id": user.user.id}

@@ -29,6 +29,7 @@ class MockExamResponse(BaseModel):
     exam_id: str
     exam_type: str
     module: int
+    module_questions: int
     total_questions: int
     questions: List[Dict]
     time_limit_minutes: int

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from app.database import get_db
 from app.models import SATQuestion, MockExam, MockExamQuestion
@@ -20,6 +20,7 @@ from app.sat_route_helpers import (
     SubmitTestRequest,
     SubmitTestResponse
 )
+from app.auth import get_current_user
 
 # Create router
 sat_router = APIRouter(prefix="/api/sat", tags=["SAT Questions"])
@@ -75,7 +76,6 @@ def generate_mock_exam(
     mock_exam = MockExam(
         exam_type=request.exam_type,
         user_id=request.user_id,
-        total_questions=len(all_questions),
         module1_questions=[question.id for question in all_questions],
         
         config={"difficulty_mix": difficulty_mix}
@@ -109,6 +109,17 @@ def generate_mock_exam(
         questions=questions_to_response(all_questions, include_answers=True), #type List[QuestionResponse]
         time_limit_minutes=time_limits.get(request.exam_type, 60)
     )
+
+@sat_router.get("/mock-exam/history")
+def get_mock_exam_history(user: Any = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get a user's mock exam history"""
+    user_id = user.user.id
+    
+    print(f"Getting mock exam history for user: {user_id}")
+    exams = db.query(MockExam).filter(MockExam.user_id == user_id).all()
+    print(f"Found {len(exams)} exams")
+    
+    return exams
 
 @sat_router.get("/mock-exam/{exam_id}", response_model=MockExamResponse)
 def get_mock_exam(exam_id: str, db: Session = Depends(get_db)):
@@ -317,12 +328,14 @@ def submit_test(module_number: int, request: SubmitTestRequest, db: Session = De
         # After commit, the MockExamQuestion objects will have their relationships loaded
         # Convert the SATQuestion objects (accessed via relationship) to response format
         module2_sat_questions = [meq.sat_question for meq in module2_exam_questions]
+        exam.module2_total = len(module2_sat_questions)
+        exam.total_questions = exam.module1_total + exam.module2_total
         
         return {
             "module": module_number,
             "correct": correct_count,
-            "total": len(module2_sat_questions),
-            "percentage": (correct_count / len(module2_sat_questions)) * 100,
+            "total": len(questions),
+            "percentage": (correct_count / len(questions)) * 100,
             "module2_difficulty": difficulty_level,
             "module2_questions": questions_to_response(module2_sat_questions, include_answers=True),
             "message": f"Module 1 complete. Module 2 will be {'more challenging' if difficulty_level == 'higher' else 'easier'}."
@@ -336,7 +349,6 @@ def submit_test(module_number: int, request: SubmitTestRequest, db: Session = De
 
         exam.module2_completed = True
         exam.module2_correct = correct_count
-        exam.module2_total = len(questions)
 
         exam.score, total_correct = score_exam(exam)
         db.commit()

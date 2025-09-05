@@ -39,6 +39,20 @@ function ResponsiveAppBar() {
     setAnchorElUser(null);
   };
 
+  const handlePageNavigation = (page) => {
+    switch (page) {
+      case 'Tests':
+        navigate('/math_test');
+        break;
+      case 'Q/A':
+        navigate('/query');
+        break;
+      case 'History':
+        navigate('/exam_history');
+        break;
+    }
+  }
+
   const handleNavigation = async (page) => {
     switch (page) {
       case 'Profile':
@@ -107,7 +121,7 @@ function ResponsiveAppBar() {
               sx={{ display: { xs: 'block', md: 'none' } }}
             >
               {pages.map((page) => (
-                <MenuItem key={page} onClick={handleCloseNavMenu}>
+                <MenuItem key={page} onClick={() => handlePageNavigation(page)}>
                   <Typography sx={{ textAlign: 'center' }}>{page}</Typography>
                 </MenuItem>
               ))}
@@ -137,7 +151,7 @@ function ResponsiveAppBar() {
             {pages.map((page) => (
               <Button
                 key={page}
-                onClick={handleCloseNavMenu}
+                onClick={() => handlePageNavigation(page)}
                 sx={{ my: 2, color: 'white', display: 'block' }}
               >
                 {page}
