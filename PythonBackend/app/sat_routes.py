@@ -71,6 +71,14 @@ def generate_mock_exam(
     if request.exam_type in ["english_only", "full_sat"]:
         english_questions = generate_section_questions(db, "English", difficulty_mix)
         all_questions.extend(english_questions)
+
+
+    if request.exam_type == 'math_only':
+        total_questions = 44
+    elif request.exam_type == 'english_only':
+        total_questions = 54
+    elif request.exam_type == 'full_sat':
+        total_questions = 98
     
     # Create mock exam record
     mock_exam = MockExam(
@@ -105,7 +113,8 @@ def generate_mock_exam(
         exam_id=str(mock_exam.id),
         exam_type=request.exam_type,
         module=1,
-        total_questions=len(all_questions),
+        module_questions=len(all_questions),
+        total_questions=total_questions,
         questions=questions_to_response(all_questions, include_answers=True), #type List[QuestionResponse]
         time_limit_minutes=time_limits.get(request.exam_type, 60)
     )
@@ -143,7 +152,8 @@ def get_mock_exam(exam_id: str, db: Session = Depends(get_db)):
         exam_id=exam_id,
         exam_type=mock_exam.exam_type,
         module=mock_exam.module,
-        total_questions=len(questions),
+        module_questions=len(questions),
+        total_questions=exam.total_questions,
         questions=questions_to_response(questions, include_answers=False),
         time_limit_minutes=time_limits.get(mock_exam.exam_type, 60)
     )
@@ -196,76 +206,6 @@ def get_available_domains(section: str, db: Session = Depends(get_db)):
         .all()
     
     return {"section": section, "domains": [domain[0] for domain in domains]}
-
-@sat_router.get("/mock-exam/adaptive/{exam_type}")
-def generate_adaptive_mock_exam(
-    exam_type: str,
-    user_performance_level: str = Query("medium", description="easy, medium, or hard based on user's typical performance"),
-    db: Session = Depends(get_db)
-):
-    """Generate an adaptive mock exam that adjusts difficulty based on user performance level"""
-    
-    # Adaptive difficulty distribution based on user's level
-    if user_performance_level == "easy":
-        # More easy questions for struggling students
-        if exam_type == "math_only":
-            difficulty_mix = {"Easy": 15, "Medium": 20, "Hard": 9}
-        else:
-            difficulty_mix = {"Easy": 18, "Medium": 25, "Hard": 11}
-    elif user_performance_level == "hard":
-        # More challenging distribution for advanced students  
-        if exam_type == "math_only":
-            difficulty_mix = {"Easy": 6, "Medium": 20, "Hard": 18}
-        else:
-            difficulty_mix = {"Easy": 8, "Medium": 25, "Hard": 21}
-    else:
-        # Standard distribution for average students
-        difficulty_mix = get_difficulty_distribution(exam_type)
-    
-    all_questions = []
-    
-    # Generate questions based on exam type
-    if exam_type in ["math_only", "full_sat"]:
-        math_questions = generate_section_questions(db, "Math", difficulty_mix)
-        all_questions.extend(math_questions)
-    
-    if exam_type in ["english_only", "full_sat"]:
-        english_questions = generate_section_questions(db, "English", difficulty_mix)
-        all_questions.extend(english_questions)
-    
-    # Create mock exam record with adaptive config
-    mock_exam = MockExam(
-        exam_type=f"{exam_type}_adaptive",
-        total_questions=len(all_questions),
-        config={
-            "difficulty_mix": difficulty_mix,
-            "user_performance_level": user_performance_level,
-            "adaptive": True
-        }
-    )
-    db.add(mock_exam)
-    db.flush()
-    
-    # Create question associations
-    for i, question in enumerate(all_questions):
-        mock_exam_question = MockExamQuestion(
-            mock_exam_id=mock_exam.id,
-            sat_question_id=question.id,
-            question_order=i + 1
-        )
-        db.add(mock_exam_question)
-    
-    db.commit()
-    
-    time_limits = {"math_only": 70, "english_only": 64, "full_sat": 134}
-    
-    return MockExamResponse(
-        exam_id=str(mock_exam.id),
-        exam_type=exam_type,
-        total_questions=len(all_questions),
-        questions=questions_to_response(all_questions, include_answers=False),
-        time_limit_minutes=time_limits.get(exam_type, 60)
-    )
 
 
 @sat_router.post("/submit_test/{module_number}")
@@ -360,4 +300,75 @@ def submit_test(module_number: int, request: SubmitTestRequest, db: Session = De
     else:
         raise HTTPException(status_code=400, detail="Invalid module number. Must be 1 or 2.")
     
+
+
+# @sat_router.get("/mock-exam/adaptive/{exam_type}")
+# def generate_adaptive_mock_exam(
+#     exam_type: str,
+#     user_performance_level: str = Query("medium", description="easy, medium, or hard based on user's typical performance"),
+#     db: Session = Depends(get_db)
+# ):
+#     """Generate an adaptive mock exam that adjusts difficulty based on user performance level"""
+    
+#     # Adaptive difficulty distribution based on user's level
+#     if user_performance_level == "easy":
+#         # More easy questions for struggling students
+#         if exam_type == "math_only":
+#             difficulty_mix = {"Easy": 15, "Medium": 20, "Hard": 9}
+#         else:
+#             difficulty_mix = {"Easy": 18, "Medium": 25, "Hard": 11}
+#     elif user_performance_level == "hard":
+#         # More challenging distribution for advanced students  
+#         if exam_type == "math_only":
+#             difficulty_mix = {"Easy": 6, "Medium": 20, "Hard": 18}
+#         else:
+#             difficulty_mix = {"Easy": 8, "Medium": 25, "Hard": 21}
+#     else:
+#         # Standard distribution for average students
+#         difficulty_mix = get_difficulty_distribution(exam_type)
+    
+#     all_questions = []
+    
+#     # Generate questions based on exam type
+#     if exam_type in ["math_only", "full_sat"]:
+#         math_questions = generate_section_questions(db, "Math", difficulty_mix)
+#         all_questions.extend(math_questions)
+    
+#     if exam_type in ["english_only", "full_sat"]:
+#         english_questions = generate_section_questions(db, "English", difficulty_mix)
+#         all_questions.extend(english_questions)
+    
+#     # Create mock exam record with adaptive config
+#     mock_exam = MockExam(
+#         exam_type=f"{exam_type}_adaptive",
+#         total_questions=len(all_questions),
+#         config={
+#             "difficulty_mix": difficulty_mix,
+#             "user_performance_level": user_performance_level,
+#             "adaptive": True
+#         }
+#     )
+#     db.add(mock_exam)
+#     db.flush()
+    
+#     # Create question associations
+#     for i, question in enumerate(all_questions):
+#         mock_exam_question = MockExamQuestion(
+#             mock_exam_id=mock_exam.id,
+#             sat_question_id=question.id,
+#             question_order=i + 1
+#         )
+#         db.add(mock_exam_question)
+    
+#     db.commit()
+    
+#     time_limits = {"math_only": 70, "english_only": 64, "full_sat": 134}
+    
+#     return MockExamResponse(
+#         exam_id=str(mock_exam.id),
+#         exam_type=exam_type,
+#         total_questions=len(all_questions),
+#         questions=questions_to_response(all_questions, include_answers=False),
+#         time_limit_minutes=time_limits.get(exam_type, 60)
+#     )
     

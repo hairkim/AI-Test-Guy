@@ -9,20 +9,17 @@
 //    - show a "Retake Test" button
 //    - some more stuff i need to think about
 
-
-//states: idle, active, error, module2_loading, module2_loaded,  
-
 import React, { useState } from 'react'
 import './MathPage.css'
+import AppHeader from './AppHeader.jsx'
 import SatQuestion from './SatQuestion.jsx'
 import { useAuth } from '../ClientStuff/AuthContext.jsx';
 
 
-export default function MathTestPage() {
+export default function EnglishTestPage() {
     const { user } = useAuth();
     const [questions, setQuestions] = useState([])
     const [testState, setTestState] = useState("idle")
-    const [isLoading, setIsLoading] = useState(false)
     const [currentIndex, setCurrentIndex] = useState(0)
     const [userAnswer, setUserAnswer] = useState({})
     const [module, setModule] = useState(1)
@@ -33,7 +30,7 @@ export default function MathTestPage() {
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
     const startTest = async () => {
-        setIsLoading(true)
+        setTestState("loading")
         setUserAnswer({})
         try {
             const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/generate`, {
@@ -42,11 +39,10 @@ export default function MathTestPage() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                exam_type: 'math_only',
+                exam_type: 'english_only',
                 user_id: user.id
             })
         })
-        if (response.ok) {
             const data = await response.json()
             setQuestions(data.questions)
             setExamId(data.exam_id)
@@ -54,13 +50,9 @@ export default function MathTestPage() {
             setCurrentIndex(0)
             console.log("fetching worked, showing some questions: " + data.questions[0].question_text)
             setTestState("active")
-        }
         } catch (error) {
             console.error("Error loading questions:", error)
             setTestState("error")
-        }
-        finally {
-            setIsLoading(false)
         }
     }
 
@@ -93,8 +85,7 @@ export default function MathTestPage() {
             return
         }
         console.log("submitting test")
-        setTestState("module2_loading")
-        setIsLoading(true)
+        setTestState("loading")
         
         try {
             const response = await fetch(`${BACKEND_URL}/api/sat/submit_test/${module}`, {
@@ -122,7 +113,7 @@ export default function MathTestPage() {
                 setModule(2)
                 setCurrentIndex(0)
                 setUserAnswer({}) // Reset answers for module 2
-                setTestState("module2_loaded")
+                setTestState("module2_active")
             } else {
                 // Module 2 completed - show final results
                 setScore(data.score)
@@ -132,10 +123,7 @@ export default function MathTestPage() {
 
         } catch (error) {
             console.error("Error submitting test:", error)
-            setIsLoading(false)
             setTestState("error")
-        } finally {
-            setIsLoading(false)
         }
     }
 
@@ -144,14 +132,16 @@ export default function MathTestPage() {
         <div className='main_container'>
             {testState === 'idle' && (
                 <div className="start_page">
-                    <h1>Math Test Page</h1>
+                    <h1>English Test Page</h1>
                     <div className='start_button'>
-                        <button onClick={startTest} disabled={isLoading}>
-                            {!isLoading ? 'Start Test' : 'Loading...'}
+                        <button onClick={startTest} disabled={testState === 'loading'}>
+                            {testState === 'idle' ? 'Start Test' 
+                            : testState === 'loading' ? 'Loading...' 
+                            : 'Error'}
                         </button>
                         <div className='test-info'>
-                            <h2>You are about to take a practice math only exam</h2>
-                            <p>The test includes 2 modules, each with 22 questions</p>
+                            <h2>You are about to take a practice english only exam</h2>
+                            <p>The test includes 2 modules, each with 27 questions</p>
                             <p>You will be given module 2 questions based on previous scoring</p>
                             <p>There is no penalty for wrong answers</p>
                             <p>Good luck!</p>
@@ -177,12 +167,6 @@ export default function MathTestPage() {
                     <p>Score: {score}</p>
                     <p>Percentage: {percentage}</p>
                     <button onClick={startTest}>Retake Test</button>
-                </div>
-            )}
-            {(testState === 'module2_loaded' || testState === 'module2_loading') && (
-                <div className="loading_page">
-                    <h1>You have reached the end of Module 1</h1>
-                    <button onClick={() => setTestState('module2_active')} disabled={isLoading}>{isLoading ? 'Loading Module 2' : 'Start Module 2'}</button>
                 </div>
             )}
         </div>

@@ -1,0 +1,9 @@
+input[type="checkbox"] {
+    margin-left: 5rem;
+    
+}
+
+.task-component li {
+    list-style-type: none;
+    display: flex;
+}
