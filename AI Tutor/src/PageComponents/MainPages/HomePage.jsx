@@ -1,13 +1,14 @@
-import React from 'react';
-import ProfilePicture from './ProfilePicture.jsx'
-import TaskComponent from './TaskComponent.jsx'
-import './HomePage.css'
-import { useAuth } from '../ClientStuff/AuthContext.jsx'
-import { useProtectedNavigation } from '../ClientStuff/UserProtectedNav.js'
+import React, { useState, useEffect } from 'react';
+import ProfilePicture from '../SupportingComponents/ProfilePicture.jsx'
+import TaskComponent from '../SupportingComponents/TaskComponent.jsx'
+import '../CSS/HomePage.css'
+import { useAuth } from '../../ClientStuff/AuthContext.jsx'
+import ScoreCircle from '../SupportingComponents/ExamCircle.jsx'
+import { useProtectedNavigation } from '../../ClientStuff/UserProtectedNav.js'
 
 export default function HomePage() {
     const { navigateWithAuth } = useProtectedNavigation()
-    const { user } = useAuth();
+    const { user, session } = useAuth();
     const pages = ['Practice Exam', 'Practice Questions', 'Ask TutorGuy', 'Exam History']
     const tasks = ['Daily 5 Math Questions','Daily 5 English Questions','Take a Practice Exam']
     const pageRoute = (page) => {
@@ -16,7 +17,7 @@ export default function HomePage() {
                 navigateWithAuth('/take_a_test')
                 break;
             case 'Practice Questions':
-                navigateWithAuth('/math_test') // make new route later
+                navigateWithAuth('/practice') // make new route later
                 break;
             case 'Ask TutorGuy':
                 navigateWithAuth('/query')
@@ -24,6 +25,53 @@ export default function HomePage() {
             case 'Exam History':
                 navigateWithAuth('/exam_history')
                 break;
+        }
+    }
+
+    const [recentExams, setRecentExams] = useState([])
+    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
+
+    useEffect(() => {
+        const loadRecentExams = async () => {
+            const exams = await fetchMostRecentExams()
+            setRecentExams(exams)
+        }
+        
+        if (session) { // Only fetch when authenticated
+            loadRecentExams()
+        }
+        else {
+            // Clear exam data when logged out
+            setRecentExams([])
+        }
+    }, [session])
+
+    //fetch the 2 or 3 most recent exams
+    const fetchMostRecentExams = async () => {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/history`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}` // Include auth token
+                }
+            })
+    
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`)
+            }
+    
+            const allExams = await response.json()
+            
+            // Sort by created_at descending (most recent first) and take first 2
+            const recentExams = allExams
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .slice(0, 2)
+            
+            return recentExams
+        } catch (error) {
+            console.error('Error fetching recent exams:', error)
+            return [] // Return empty array if error
         }
     }
 
@@ -50,6 +98,9 @@ export default function HomePage() {
             <div className='middle-content'>
                 <div className='most-recent-exam'>
                     <h2>Most Recent Exam Score</h2>
+                    {recentExams.length > 0 && (
+                        <ScoreCircle examType={recentExams[0].exam_type} score={recentExams[0].score} />
+                    )}
                 </div>
                 <div className='daily-tasks'>
                     <h2>Daily Tasks</h2>

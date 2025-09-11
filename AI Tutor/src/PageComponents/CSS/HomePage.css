@@ -48,7 +48,7 @@
     display: flex;
     width: auto;
     height: 30%;
-    padding: 0 5vw;
+    padding: 0 3vw;
     /* border: 1px solid black; */
 }
 
@@ -79,4 +79,8 @@
 
 .most-recent-exam {
     width: 33%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0;
 }

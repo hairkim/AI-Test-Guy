@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom';
-import { signIn, signUp } from '../ClientStuff/auth';
+import { signIn, signUp } from '../../ClientStuff/auth';
 
 export default function Login() {
     const [page, setPage] = useState("login")

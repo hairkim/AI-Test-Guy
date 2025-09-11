@@ -1,5 +1,5 @@
 import React from 'react'
-import './TaskComponent.css'
+import '../CSS/TaskComponent.css'
 import PropTypes from 'prop-types'
 
 export default function TaskComponent({text, completed, onToggleComplete}) {

@@ -1,0 +1,24 @@
+.practice_start_container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100vh;
+    padding: 0 2rem;
+    width: 100%;
+    gap: 5rem;
+}
+
+.math_practice_start, .english_practice_start {
+    display: flex;
+    flex-direction: column;
+    width: 40%;
+    align-items: center;
+}
+
+.math_practice_start button, .english_practice_start button {
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    font-weight: 500;
+    width: 100%;
+}
+    

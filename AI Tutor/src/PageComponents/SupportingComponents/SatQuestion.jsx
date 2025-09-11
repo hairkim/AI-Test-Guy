@@ -5,7 +5,7 @@
 
 import React from 'react'
 import PropTypes from 'prop-types'
-import './SatQuestion.css'
+import '../CSS/SatQuestion.css'
 import { InlineMath } from 'react-katex';
 
 export default function SatQuestion({ question, index, selectedAnswer, handleAnswerSelect }) {

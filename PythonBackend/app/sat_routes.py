@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional, Any
-
+from datetime import datetime, timezone
 from app.database import get_db
 from app.models import SATQuestion, MockExam, MockExamQuestion
 from app.sat_route_helpers import (
@@ -85,6 +85,8 @@ def generate_mock_exam(
         exam_type=request.exam_type,
         user_id=request.user_id,
         module1_questions=[question.id for question in all_questions],
+        started_at=datetime.fromisoformat(request.started_at.replace('Z', '+00:00')) if request.started_at else datetime.utcnow(),
+        total_questions=total_questions,
         
         config={"difficulty_mix": difficulty_mix}
     )
@@ -101,13 +103,7 @@ def generate_mock_exam(
         db.add(mock_exam_question)
     
     db.commit()
-    
-    # Set time limits (official Digital SAT timing from College Board)
-    time_limits = {
-        "math_only": 70,      # 44 questions in 70 minutes (35 min per module)
-        "english_only": 64,   # 54 questions in 64 minutes (32 min per module)
-        "full_sat": 134       # 98 questions in 134 minutes (70+64, no break time)
-    }
+
     
     return MockExamResponse(
         exam_id=str(mock_exam.id),
@@ -116,17 +112,18 @@ def generate_mock_exam(
         module_questions=len(all_questions),
         total_questions=total_questions,
         questions=questions_to_response(all_questions, include_answers=True), #type List[QuestionResponse]
-        time_limit_minutes=time_limits.get(request.exam_type, 60)
     )
 
 @sat_router.get("/mock-exam/history")
 def get_mock_exam_history(user: Any = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Get a user's mock exam history"""
+    """Get a user's mock exam history, sorted by most recent"""
     user_id = user.user.id
     
-    print(f"Getting mock exam history for user: {user_id}")
-    exams = db.query(MockExam).filter(MockExam.user_id == user_id).all()
-    print(f"Found {len(exams)} exams")
+    # Order by created_at descending, limit to recent exams
+    exams = db.query(MockExam)\
+        .filter(MockExam.user_id == user_id)\
+        .order_by(MockExam.created_at.desc())\
+        .all()
     
     return exams
 
@@ -146,7 +143,6 @@ def get_mock_exam(exam_id: str, db: Session = Depends(get_db)):
     
     questions = [eq.sat_question for eq in exam_questions]
     
-    time_limits = {"math_only": 80, "english_only": 64, "full_sat": 144}
     
     return MockExamResponse(
         exam_id=exam_id,
@@ -155,7 +151,6 @@ def get_mock_exam(exam_id: str, db: Session = Depends(get_db)):
         module_questions=len(questions),
         total_questions=exam.total_questions,
         questions=questions_to_response(questions, include_answers=False),
-        time_limit_minutes=time_limits.get(mock_exam.exam_type, 60)
     )
 
 @sat_router.get("/questions/{question_id}/answer", response_model=QuestionWithAnswer)
@@ -269,7 +264,6 @@ def submit_test(module_number: int, request: SubmitTestRequest, db: Session = De
         # Convert the SATQuestion objects (accessed via relationship) to response format
         module2_sat_questions = [meq.sat_question for meq in module2_exam_questions]
         exam.module2_total = len(module2_sat_questions)
-        exam.total_questions = exam.module1_total + exam.module2_total
         
         return {
             "module": module_number,
@@ -289,8 +283,21 @@ def submit_test(module_number: int, request: SubmitTestRequest, db: Session = De
 
         exam.module2_completed = True
         exam.module2_correct = correct_count
+        exam.completed_at = datetime.fromisoformat(request.time_ended.replace('Z', '+00:00'))
 
         exam.score, total_correct = score_exam(exam)
+        exam.correct_answers = total_correct
+        if request.time_ended:
+            time_ended = datetime.fromisoformat(request.time_ended.replace('Z', '+00:00'))
+            # Ensure both datetimes are timezone-aware or naive
+            if exam.started_at.tzinfo is None:
+                time_started = exam.started_at.replace(tzinfo=timezone.utc)
+            else:
+                time_started = exam.started_at
+            exam.time_spent_minutes = int((time_ended - time_started).total_seconds() / 60)
+        else:
+            exam.time_spent_minutes = None
+
         db.commit()
         return {
             "score": exam.score,

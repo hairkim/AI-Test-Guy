@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useAuth } from "../ClientStuff/AuthContext.jsx";
+import { useAuth } from "../../ClientStuff/AuthContext.jsx";
+import ExamHistoryRow from "../SupportingComponents/ExamHistoryRow.jsx";
+import '../CSS/ExamHistory.css'
 
 export default function ExamHistory() {
 
@@ -30,16 +32,12 @@ export default function ExamHistory() {
     
     return (
         <div>
+            <div className='title-container'>
+                <h1>Exam History</h1>
+            </div>
             {exams.length > 0 ? (
                 exams.map((exam) => (
-                    <div key={exam.id}>
-                        <h2>Exam {exam.id}</h2>
-                        <p>Exam Type: {exam.exam_type}</p>
-                        <p>Module: {exam.module}</p>
-                        <p>Total Questions: {exam.total_questions}</p>
-                        <p>Score: {exam.score}</p>
-                        <p>Percentage: {exam.percentage}</p>
-                    </div>
+                    <ExamHistoryRow exam={exam} />
                 ))
             ) : (
                 <p>No exams found</p>

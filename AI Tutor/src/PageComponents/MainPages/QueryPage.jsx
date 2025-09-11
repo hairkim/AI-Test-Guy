@@ -1,6 +1,6 @@
 import {React, useState} from 'react'
 import QuestionsPage from './QuestionsPage.jsx'
-import './QueryPage.css'
+import '../CSS/QueryPage.css'
 import EnglishPage from './EnglishPage.jsx'
 
 export default function HomePage() {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { InlineMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
-import './StepByStepExplanation.css';
+import '../CSS/StepByStepExplanation.css';
 import PropTypes from 'prop-types';
 
 

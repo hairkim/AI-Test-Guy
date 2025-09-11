@@ -24,6 +24,7 @@ class MockExamRequest(BaseModel):
     exam_type: str = Field(..., description="math_only, english_only, or full_sat")
     difficulty_mix: Optional[Dict[str, int]] = None
     user_id: Optional[str] = None
+    started_at: Optional[str] = None
 
 class MockExamResponse(BaseModel):
     exam_id: str
@@ -32,13 +33,16 @@ class MockExamResponse(BaseModel):
     module_questions: int
     total_questions: int
     questions: List[Dict]
-    time_limit_minutes: int
+    eng_module_time_limit: int = 32
+    math_module_time_limit: int = 35
+    break_time_limit: int = 10
 
 
 class SubmitTestRequest(BaseModel):
     exam_id: str
     answers: Dict[str, str]
     module: int
+    time_ended: Optional[str] = None
 
 class SubmitTestResponse(BaseModel):
     score: int

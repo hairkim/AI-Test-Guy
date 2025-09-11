@@ -1,5 +1,5 @@
 import React from 'react'
-import './TakeATest.css'
+import '../CSS/TakeATest.css'
 import { useNavigate } from 'react-router-dom'
 
 export default function TakeATest() {

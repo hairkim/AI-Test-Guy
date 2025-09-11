@@ -1,8 +1,8 @@
 import { useState, React } from 'react';
 import { InlineMath } from 'react-katex';
-import './QuestionsPage.css'
-import DragAndDrop from './DragAndDrop.jsx'
-import StepByStepExplanation from './StepByStepExplanation.jsx'
+import '../CSS/QuestionsPage.css'
+import DragAndDrop from '../SupportingComponents/DragAndDrop.jsx'
+import StepByStepExplanation from '../SupportingComponents/StepByStepExplanation.jsx'
 
 export default function QuestionsPage() {
     const [question, setQuestion] = useState("");

@@ -10,10 +10,9 @@
 //    - some more stuff i need to think about
 
 import React, { useState } from 'react'
-import './MathPage.css'
-import AppHeader from './AppHeader.jsx'
-import SatQuestion from './SatQuestion.jsx'
-import { useAuth } from '../ClientStuff/AuthContext.jsx';
+import '../CSS/MathPage.css'
+import SatQuestion from '../SupportingComponents/SatQuestion.jsx'
+import { useAuth } from '../../ClientStuff/AuthContext.jsx';
 
 
 export default function EnglishTestPage() {
@@ -40,7 +39,8 @@ export default function EnglishTestPage() {
             },
             body: JSON.stringify({
                 exam_type: 'english_only',
-                user_id: user.id
+                user_id: user.id,
+                started_at: new Date().toISOString()
             })
         })
             const data = await response.json()
@@ -86,6 +86,17 @@ export default function EnglishTestPage() {
         }
         console.log("submitting test")
         setTestState("loading")
+
+        const requestBody = {
+            exam_id: examId,
+            answers: userAnswer,
+            module: module
+        };
+        
+        // Add end time only for module 2
+        if (module === 2) {
+            requestBody.time_ended = new Date().toISOString();
+        }
         
         try {
             const response = await fetch(`${BACKEND_URL}/api/sat/submit_test/${module}`, {
@@ -93,11 +104,7 @@ export default function EnglishTestPage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    exam_id: examId,
-                    answers: userAnswer,
-                    module: module
-                })
+                body: JSON.stringify(requestBody)
             })
 
             if (!response.ok) {

@@ -320,7 +320,6 @@ class MockExam(Base):
     module1_completed = Column(Boolean, default=False)
     module1_correct = Column(Integer, default=0)
     module1_total = Column(Integer, default=22)  # 22 questions per module
-    module1_difficulty_assigned = Column(String)  # "lower", "higher"
     module1_questions = Column(JSONB, default={})
     
     # Module 2 results  

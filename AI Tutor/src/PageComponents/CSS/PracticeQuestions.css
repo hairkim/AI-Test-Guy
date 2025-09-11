@@ -1,0 +1,11 @@
+.practice_question_container {
+    display: flex;
+}
+
+.question_container {
+    width: 60%;
+}
+
+.ai_container {
+    width: 40%;
+}

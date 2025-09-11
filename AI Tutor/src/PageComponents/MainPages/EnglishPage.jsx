@@ -1,5 +1,5 @@
 import {React, useState} from 'react'
-import './EnglishPage.css'
+import '../CSS/EnglishPage.css'
 
 export default function EnglishPage() {
     const [passage, setPassage] = useState("")

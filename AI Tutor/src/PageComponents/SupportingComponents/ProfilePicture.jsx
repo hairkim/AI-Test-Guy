@@ -6,14 +6,14 @@ import Menu from '@mui/material/Menu';
 import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
-import { useAuth } from '../ClientStuff/AuthContext.jsx';
+import { useAuth } from '../../ClientStuff/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
 
 export default function ProfilePicture() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { signOut } = useAuth();
-    const settings = ['Profile', 'Logout'];
+    const settings = user ? ['Profile', 'Logout'] : ['Login'];
 
     const [anchorElUser, setAnchorElUser] = React.useState(null);
     const handleOpenUserMenu = (event) => {
@@ -32,6 +32,9 @@ export default function ProfilePicture() {
             console.log("signing out")
             await signOut();
             navigate('/');
+            break;
+          case 'Login':
+            navigate('/login');
             break;
         }
     }

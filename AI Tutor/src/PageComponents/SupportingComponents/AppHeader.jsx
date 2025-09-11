@@ -12,7 +12,7 @@ import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import AdbIcon from '@mui/icons-material/Adb';  
-import { useAuth } from '../ClientStuff/AuthContext.jsx';
+import { useAuth } from '../../ClientStuff/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
 
 const pages = ['Tests', 'Q/A', 'History'];

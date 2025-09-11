@@ -13,9 +13,9 @@
 //states: idle, active, error, module2_loading, module2_loaded,  
 
 import React, { useState } from 'react'
-import './MathPage.css'
-import SatQuestion from './SatQuestion.jsx'
-import { useAuth } from '../ClientStuff/AuthContext.jsx';
+import '../CSS/MathPage.css'
+import SatQuestion from '../SupportingComponents/SatQuestion.jsx'
+import { useAuth } from '../../ClientStuff/AuthContext.jsx';
 
 
 export default function MathTestPage() {
@@ -43,7 +43,8 @@ export default function MathTestPage() {
             },
             body: JSON.stringify({
                 exam_type: 'math_only',
-                user_id: user.id
+                user_id: user.id,
+                started_at: new Date().toISOString()
             })
         })
         if (response.ok) {
@@ -95,6 +96,17 @@ export default function MathTestPage() {
         console.log("submitting test")
         setTestState("module2_loading")
         setIsLoading(true)
+
+        const requestBody = {
+            exam_id: examId,
+            answers: userAnswer,
+            module: module
+        };
+        
+        // Add end time only for module 2
+        if (module === 2) {
+            requestBody.time_ended = new Date().toISOString();
+        }
         
         try {
             const response = await fetch(`${BACKEND_URL}/api/sat/submit_test/${module}`, {
@@ -102,11 +114,7 @@ export default function MathTestPage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    exam_id: examId,
-                    answers: userAnswer,
-                    module: module
-                })
+                body: JSON.stringify(requestBody)
             })
 
             if (!response.ok) {
