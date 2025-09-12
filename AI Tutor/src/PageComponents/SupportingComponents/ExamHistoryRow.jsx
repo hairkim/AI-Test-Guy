@@ -1,4 +1,5 @@
 import React from 'react'
+import PropTypes from 'prop-types'
 
 export default function ExamHistoryRow({ exam }) {
   const formatDate = (dateString) => {
@@ -147,3 +148,7 @@ export default function ExamHistoryRow({ exam }) {
     </div>
   );
 };
+
+ExamHistoryRow.propTypes = {
+  exam: PropTypes.object.isRequired
+}

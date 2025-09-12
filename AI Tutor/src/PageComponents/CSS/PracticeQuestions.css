@@ -1,11 +1,23 @@
 .practice_question_container {
     display: flex;
+    height: 100vh;
 }
 
 .question_container {
     width: 60%;
+    position: relative;
 }
 
 .ai_container {
     width: 40%;
+}
+
+.practice-question-buttons {
+    position: absolute; /* Change from fixed to absolute */
+    bottom: 2rem;
+    left: 50%; /* Center horizontally */
+    transform: translateX(-50%); /* Perfect centering */
+    z-index: 1000;
+    display: flex;
+    gap: 2rem; /* Reduced from 10rem */
 }

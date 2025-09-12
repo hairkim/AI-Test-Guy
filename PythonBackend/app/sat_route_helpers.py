@@ -221,7 +221,7 @@ def score_exam(exam: MockExam) -> (int, int):
     
     combinedScore = module1_score + module2_score
 
-    if(exam.module1_difficulty_assigned == "lower"):
+    if(exam.module2_difficulty_assigned == "lower"):
         score = round_to_nearest_10( 200 + (combinedScore/44) * (690 - 200) )
     else:
         score = round_to_nearest_10( 300 + (combinedScore/44) * (800 - 300) )

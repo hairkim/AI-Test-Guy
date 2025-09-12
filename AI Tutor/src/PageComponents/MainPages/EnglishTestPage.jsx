@@ -13,6 +13,7 @@ import React, { useState } from 'react'
 import '../CSS/MathPage.css'
 import SatQuestion from '../SupportingComponents/SatQuestion.jsx'
 import { useAuth } from '../../ClientStuff/AuthContext.jsx';
+import ExamTimer from '../SupportingComponents/ExamTimer.jsx'
 
 
 export default function EnglishTestPage() {
@@ -25,11 +26,14 @@ export default function EnglishTestPage() {
     const [examId, setExamId] = useState(null)
     const [score, setScore] = useState(null)
     const [percentage, setPercentage] = useState(null)
+    const [isLoading, setIsLoading] = useState(false)
+    const [timer, setTimer] = useState(0)
+    const [timerWarning, setTimerWarning] = useState('')
 
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
     const startTest = async () => {
-        setTestState("loading")
+        setIsLoading(true)
         setUserAnswer({})
         try {
             const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/generate`, {
@@ -48,12 +52,24 @@ export default function EnglishTestPage() {
             setExamId(data.exam_id)
             setModule(1)
             setCurrentIndex(0)
+            setTimer(data.eng_module_time_limit)
             console.log("fetching worked, showing some questions: " + data.questions[0].question_text)
             setTestState("active")
         } catch (error) {
             console.error("Error loading questions:", error)
             setTestState("error")
         }
+    }
+
+    const handleTimeUp = () => {
+        console.log("time up");
+        submitTest()
+    }
+
+    const handleTimeWarning = (message) => {
+        setTimerWarning(message)
+        // Clear warning after 5 seconds
+        setTimeout(() => setTimerWarning(''), 5000)
     }
 
     const selectNextQuestion = () => {
@@ -85,7 +101,12 @@ export default function EnglishTestPage() {
             return
         }
         console.log("submitting test")
-        setTestState("loading")
+        if(module === 1) {
+            setTestState("module2_loading")
+        } else {
+            setTestState("loading_results")
+        }
+        setIsLoading(true)
 
         const requestBody = {
             exam_id: examId,
@@ -120,7 +141,7 @@ export default function EnglishTestPage() {
                 setModule(2)
                 setCurrentIndex(0)
                 setUserAnswer({}) // Reset answers for module 2
-                setTestState("module2_active")
+                setTestState("module2_loaded")
             } else {
                 // Module 2 completed - show final results
                 setScore(data.score)
@@ -130,21 +151,49 @@ export default function EnglishTestPage() {
 
         } catch (error) {
             console.error("Error submitting test:", error)
+            setIsLoading(false)
             setTestState("error")
+        } finally {
+            setIsLoading(false)
         }
     }
 
 
     return (
         <div className='main_container'>
+            {(testState === 'active' || testState === 'module2_active') && (
+                <ExamTimer 
+                    timeLimit={timer}
+                    isActive={testState === 'active' || testState === 'module2_active'}
+                    onTimeUp={handleTimeUp}
+                    module={module}
+                    onWarning={handleTimeWarning}
+                />
+            )}
+
+            {/* Warning message */}
+            {timerWarning && (
+                <div style={{
+                    position: 'fixed',
+                    top: '100px',
+                    right: '20px',
+                    backgroundColor: '#FEF3C7',
+                    border: '1px solid #F59E0B',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    fontSize: '14px',
+                    color: '#92400E',
+                    zIndex: 1001
+                }}>
+                    {timerWarning}
+                </div>
+            )}
             {testState === 'idle' && (
                 <div className="start_page">
                     <h1>English Test Page</h1>
                     <div className='start_button'>
-                        <button onClick={startTest} disabled={testState === 'loading'}>
-                            {testState === 'idle' ? 'Start Test' 
-                            : testState === 'loading' ? 'Loading...' 
-                            : 'Error'}
+                        <button onClick={startTest} disabled={isLoading}>
+                            {!isLoading ? 'Start Test' : 'Loading...'}
                         </button>
                         <div className='test-info'>
                             <h2>You are about to take a practice english only exam</h2>

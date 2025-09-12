@@ -9,12 +9,14 @@ export default function ExamHistory() {
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
     const [exams, setExams] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
     
     useEffect(() => {
         fetchExams();
     }, []);
     
     const fetchExams = async () => {
+        setIsLoading(true);
         try {
             const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/history`, {
                 method: 'GET',
@@ -27,6 +29,8 @@ export default function ExamHistory() {
             setExams(data);
         } catch (error) {
             console.error('Error fetching exams:', error);
+        } finally {
+            setIsLoading(false);
         }
     };
     
@@ -35,11 +39,17 @@ export default function ExamHistory() {
             <div className='title-container'>
                 <h1>Exam History</h1>
             </div>
-            {exams.length > 0 ? (
+            {isLoading && (
+                <div className='history-loading-container'>
+                    <p>Loading exams...</p>
+                </div>
+            )}
+            {(!isLoading && exams.length > 0) && (
                 exams.map((exam) => (
-                    <ExamHistoryRow exam={exam} />
+                    <ExamHistoryRow key={exam.id} exam={exam} />
                 ))
-            ) : (
+            )}
+            {(!isLoading && exams.length === 0) && (
                 <p>No exams found</p>
             )}
         </div>

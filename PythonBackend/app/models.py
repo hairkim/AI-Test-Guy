@@ -327,6 +327,7 @@ class MockExam(Base):
     module2_correct = Column(Integer, default=0)
     module2_total = Column(Integer, default=22)
     module2_questions = Column(JSONB, default={})
+    module2_difficulty_assigned = Column(String, default="lower")
     
     created_at = Column(DateTime, default=datetime.utcnow)
     started_at = Column(DateTime)

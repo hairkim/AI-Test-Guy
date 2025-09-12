@@ -112,6 +112,9 @@ def generate_mock_exam(
         module_questions=len(all_questions),
         total_questions=total_questions,
         questions=questions_to_response(all_questions, include_answers=True), #type List[QuestionResponse]
+        eng_module_time_limit=32,
+        math_module_time_limit=35,
+        break_time_limit=10
     )
 
 @sat_router.get("/mock-exam/history")
@@ -243,6 +246,7 @@ def submit_test(module_number: int, request: SubmitTestRequest, db: Session = De
         module2_questions = generate_module2_questions(db, exam, difficulty_level) #returns List[SATQuestion]
         print("submit test in module 2 the length of questions for module 2: " + str(len(module2_questions)))
         exam.module2_questions=[question.id for question in module2_questions]
+        exam.module2_difficulty_assigned = difficulty_level
         
         # Create MockExamQuestion records for module 2
         current_order = max([eq.question_order for eq in exam.questions]) + 1

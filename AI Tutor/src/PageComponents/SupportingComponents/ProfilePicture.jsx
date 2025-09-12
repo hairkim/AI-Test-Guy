@@ -13,7 +13,7 @@ export default function ProfilePicture() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { signOut } = useAuth();
-    const settings = user ? ['Profile', 'Logout'] : ['Login'];
+    const settings = user ? ['Profile', 'Logout'] : ['Login', 'Sign Up'];
 
     const [anchorElUser, setAnchorElUser] = React.useState(null);
     const handleOpenUserMenu = (event) => {
@@ -35,6 +35,9 @@ export default function ProfilePicture() {
             break;
           case 'Login':
             navigate('/login');
+            break;
+          case 'Sign Up':
+            navigate('/signup');
             break;
         }
     }

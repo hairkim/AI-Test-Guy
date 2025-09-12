@@ -10,15 +10,18 @@
 //    - some more stuff i need to think about
 
 
-//states: idle, active, error, module2_loading, module2_loaded,  
+//states: idle, active, error, module2_loading, module2_loaded, loading_results, completed
 
 import React, { useState } from 'react'
 import '../CSS/MathPage.css'
 import SatQuestion from '../SupportingComponents/SatQuestion.jsx'
 import { useAuth } from '../../ClientStuff/AuthContext.jsx';
+import ExamTimer from '../SupportingComponents/ExamTimer.jsx'
+import { useParams } from 'react-router-dom'
 
 
-export default function MathTestPage() {
+export default function TestPage() {
+    const { examType } = useParams()
     const { user } = useAuth();
     const [questions, setQuestions] = useState([])
     const [testState, setTestState] = useState("idle")
@@ -29,6 +32,8 @@ export default function MathTestPage() {
     const [examId, setExamId] = useState(null)
     const [score, setScore] = useState(null)
     const [percentage, setPercentage] = useState(null)
+    const [timer, setTimer] = useState(0);
+    const [timerWarning, setTimerWarning] = useState('')
 
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
@@ -42,13 +47,18 @@ export default function MathTestPage() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                exam_type: 'math_only',
+                exam_type: examType,
                 user_id: user.id,
                 started_at: new Date().toISOString()
             })
         })
         if (response.ok) {
             const data = await response.json()
+            if (examType === 'math_only') {
+                setTimer(data.math_module_time_limit)
+            } else if (examType === 'english_only') {
+                setTimer(data.eng_module_time_limit)
+            }
             setQuestions(data.questions)
             setExamId(data.exam_id)
             setModule(1)
@@ -63,6 +73,17 @@ export default function MathTestPage() {
         finally {
             setIsLoading(false)
         }
+    }
+
+    const handleTimeUp = () => {
+        console.log("time up");
+        submitTest()
+    }
+
+    const handleTimeWarning = (message) => {
+        setTimerWarning(message)
+        // Clear warning after 5 seconds
+        setTimeout(() => setTimerWarning(''), 5000)
     }
 
     const selectNextQuestion = () => {
@@ -94,7 +115,11 @@ export default function MathTestPage() {
             return
         }
         console.log("submitting test")
-        setTestState("module2_loading")
+        if(module === 1) {
+            setTestState("module2_loading")
+        } else {
+            setTestState("loading_results")
+        }
         setIsLoading(true)
 
         const requestBody = {
@@ -150,19 +175,58 @@ export default function MathTestPage() {
 
     return (
         <div className='main_container'>
+            {(testState === 'active' || testState === 'module2_active') && (
+                <ExamTimer 
+                    timeLimit={timer}
+                    isActive={testState === 'active' || testState === 'module2_active'}
+                    onTimeUp={handleTimeUp}
+                    module={module}
+                    onWarning={handleTimeWarning}
+                />
+            )}
+
+            {/* Warning message */}
+            {timerWarning && (
+                <div style={{
+                    position: 'fixed',
+                    top: '100px',
+                    right: '20px',
+                    backgroundColor: '#FEF3C7',
+                    border: '1px solid #F59E0B',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    fontSize: '14px',
+                    color: '#92400E',
+                    zIndex: 1001
+                }}>
+                    {timerWarning}
+                </div>
+            )}
             {testState === 'idle' && (
                 <div className="start_page">
-                    <h1>Math Test Page</h1>
+                    <h1>{examType === 'math_only' ? 'Math Test Page' : 'English Test Page'}</h1>
                     <div className='start_button'>
                         <button onClick={startTest} disabled={isLoading}>
                             {!isLoading ? 'Start Test' : 'Loading...'}
                         </button>
                         <div className='test-info'>
-                            <h2>You are about to take a practice math only exam</h2>
-                            <p>The test includes 2 modules, each with 22 questions</p>
-                            <p>You will be given module 2 questions based on previous scoring</p>
-                            <p>There is no penalty for wrong answers</p>
-                            <p>Good luck!</p>
+                            {examType === 'math_only' ? (
+                                <>
+                                    <h2>You are about to take a practice math only exam</h2>
+                                    <p>The test includes 2 modules, each with 22 questions</p>
+                                    <p>You will be given module 2 questions based on previous scoring</p>
+                                    <p>There is no penalty for wrong answers</p>
+                                    <p>Good luck!</p>
+                                </>
+                            ) : (
+                                <>
+                                    <h2>You are about to take a practice english only exam</h2>
+                                    <p>The test includes 2 modules, each with 27 questions</p>
+                                    <p>You will be given module 2 questions based on previous scoring</p>
+                                    <p>There is no penalty for wrong answers</p>
+                                    <p>Good luck!</p>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -177,6 +241,11 @@ export default function MathTestPage() {
                     <div className='submit_container'>
                         <button onClick={submitTest}>Submit</button>
                     </div>   
+                </div>
+            )}
+            {testState === 'loading_results' && (
+                <div className="loading_results">
+                    <h1>Loading Results...</h1>
                 </div>
             )}
             {(testState === 'completed' && score !== null && percentage !== null) && (
