@@ -7,10 +7,10 @@
 }
 
 .qpage_chat_box {
-  height: 90%;
+  height: 100%;
   width: 90%;
-  margin: 2rem;
-  border: 1px solid black;
+  margin: 1rem;
+  /* border: 1px solid black; */
   overflow-y: scroll;
 }
 
@@ -18,13 +18,14 @@
   display: flex;
   align-items: flex-end;
   gap: 12px;
-  background: black;
-  border: 2px solid #e9ecef;
+  background: inherit;
+  border: 2px solid #f4881c;
   border-radius: 24px;
   padding: 8px 8px 8px 16px;
   width: 90%;
   max-width: 35vw;
-  min-width: 35vw; 
+  min-width: 35vw;
+  margin-bottom: 1rem;
 }
 
 .prompt.auto-resize {
@@ -36,6 +37,7 @@
   font-family: inherit;
   font-size: 16px;
   line-height: 1.5;
+  color: black;
   
   /* Key CSS for auto-resizing */
   min-height: 24px;
@@ -47,4 +49,50 @@
   overflow-y: hidden;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
+}
+
+
+.message-wrapper {
+  display: flex;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.message-wrapper.user {
+  justify-content: flex-end; /* Push user message to right */
+}
+
+.message-wrapper.ai {
+  justify-content: flex-start; /* Keep AI message on left */
+}
+
+/* Update your existing message styles */
+.chat_box_user_message {
+  background: #ff8400;
+  color: black;
+  padding: 0.75rem 1rem;
+  border-radius: 1.125rem;
+  border-bottom-right-radius: 0.25rem;
+  width: auto;
+  max-width: 70%;
+  word-wrap: break-word;
+}
+
+.chat_box_ai_message {
+  background: inherit;
+  color: black;
+  padding: 0.75rem 1rem;
+  border-radius: 1.125rem;
+  border-bottom-left-radius: 0.25rem;
+  width: auto;
+  max-width: 80%;
+  word-wrap: break-word;
+}
+
+/* Keep your existing qpage_messages_container */
+.qpage_messages_container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
 }

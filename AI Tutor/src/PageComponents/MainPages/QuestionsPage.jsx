@@ -5,53 +5,109 @@ import ReactMarkdown from 'react-markdown'
 export default function QuestionsPage() {
     const [question, setQuestion] = useState("");
     const [error, setError] = useState("");
-    const [answer, setAnswer] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [chatHistory, setChatHistory] = useState([]);
   
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
   
     const submitPrompt = async () => {
-      if(!question) {
-        setError("Please enter a question or image into the field")
-        return
+      if (!question.trim()) {
+          setError("Please enter a question");
+          return;
       }
-  
+
+      // Add conversation with pending status
+      const newConversation = {
+          question: question.trim(),
+          response: null,
+          timestamp: new Date(),
+          status: 'pending'
+      };
+      setChatHistory(prev => [...prev, newConversation]);
+
+      const currentQuestion = question;
+      setQuestion(""); // Clear input immediately
       setIsLoading(true);
       setError("");
-      setAnswer("");
-  
-      //move onto api stuff
+
       try {
-        const res = await fetch(`${BACKEND_URL}/ask`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ question: question }), // sending { "question": "..." }
-        });
-    
-        const data = await res.json();
-    
-        if (res.ok) {
-          setAnswer(data.solution || "");
-          console.log("Response data:", data);
-          setError(""); // clear error
-        } else {
-          setError("Something went wrong.");
-        }
+          const res = await fetch(`${BACKEND_URL}/ask`, {
+              method: "POST",
+              headers: {
+                  "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ question: currentQuestion }),
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+              // Update the last conversation with the response
+              setChatHistory(prev => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = {
+                      ...updated[updated.length - 1],
+                      response: data.solution || "",
+                      status: 'complete'
+                  };
+                  return updated;
+              });
+              setError("");
+          } else {
+              // Mark as error
+              setChatHistory(prev => {
+                  const updated = [...prev];
+                  updated[updated.length - 1].status = 'error';
+                  return updated;
+              });
+              setError("Something went wrong.");
+          }
       } catch (err) {
-        setError("Server error: " + err.message);
+          // Mark as error
+          setChatHistory(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1].status = 'error';
+              return updated;
+          });
+          setError("Server error: " + err.message);
       } finally {
-        setIsLoading(false);
+          setIsLoading(false);
       }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        submitPrompt();
     }
+};
 
     return (
       <div className='questions_page_container'>
-        <div className='qpage_chat_box'>
           {/* chat history along with chat output */}
-          <ReactMarkdown>{answer}</ReactMarkdown>
-        </div>
+          <div className='qpage_chat_box'>
+            {chatHistory.map((message, index) => (
+              <div className='qpage_messages_container' key={index}>
+                {/* User message with wrapper for right alignment */}
+                <div className='message-wrapper user'>
+                  <div className='chat_box_user_message'>{message.question}</div>
+                </div>
+                
+                {/* AI message with wrapper for left alignment */}
+                <div className='message-wrapper ai'>
+                  <div className='chat_box_ai_message'>
+                    {message.status === 'pending' ? (
+                      <div className="typing-indicator">Loading...</div>
+                    ) : message.status === 'error' ? (
+                      <div>Sorry, I couldn't process that request.</div>
+                    ) : (
+                      <ReactMarkdown>{message.response}</ReactMarkdown>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         <div className='qpage_form'>
           {error && (
             <div className="error-message">
@@ -63,7 +119,7 @@ export default function QuestionsPage() {
                 className="prompt auto-resize"
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
-                // onKeyDown={handleKeyDown}
+                onKeyDown={handleKeyDown}
                 placeholder="Ask me anything..."
                 disabled={isLoading}
                 rows={1}
