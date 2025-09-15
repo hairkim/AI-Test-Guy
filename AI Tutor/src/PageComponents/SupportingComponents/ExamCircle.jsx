@@ -111,63 +111,6 @@ export default function ScoreCircle({ examType, score }) {
   );
 };
 
-// // Example usage component
-// const ScoreDashboard = () => {
-//   const [currentScore, setCurrentScore] = useState(1480);
-
-//   const testScores = [800, 1200, 1480, 1600];
-
-//   return (
-//     <div style={{ padding: '20px', backgroundColor: '#F9FAFB', minHeight: '100vh' }}>
-//       <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-//         <h1 style={{ fontSize: '24px', marginBottom: '20px', color: '#1F2937' }}>
-//           Recent SAT Score
-//         </h1>
-        
-//         <ScoreCircle score={currentScore} />
-        
-//         <div style={{ marginTop: '30px' }}>
-//           <p style={{ marginBottom: '15px', color: '#6B7280' }}>
-//             Try different scores:
-//           </p>
-//           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-//             {testScores.map((score) => (
-//               <button
-//                 key={score}
-//                 onClick={() => setCurrentScore(score)}
-//                 style={{
-//                   padding: '8px 16px',
-//                   backgroundColor: currentScore === score ? '#3B82F6' : '#E5E7EB',
-//                   color: currentScore === score ? 'white' : '#374151',
-//                   border: 'none',
-//                   borderRadius: '6px',
-//                   cursor: 'pointer',
-//                   fontSize: '14px',
-//                   fontWeight: '500',
-//                 }}
-//               >
-//                 {score}
-//               </button>
-//             ))}
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* Multiple sizes example */}
-//       <div style={{ textAlign: 'center' }}>
-//         <h2 style={{ fontSize: '20px', marginBottom: '20px', color: '#1F2937' }}>
-//           Different Sizes
-//         </h2>
-//         <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
-//           <ScoreCircle score={1350} size={120} />
-//           <ScoreCircle score={1480} size={160} />
-//           <ScoreCircle score={1200} size={200} />
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
 
 ScoreCircle.propTypes = {
     examType: PropTypes.string.isRequired,
