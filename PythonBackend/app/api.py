@@ -9,6 +9,7 @@ from app.tools import (
     MathSolverTool, ExtractMathTool, RetrieveContextTool, SympySolveTool,
 )
 from app.threeagenttutor import ConversationalSATTutor
+from app.english_tutor_agent import ConversationalEnglishSATTutor
 from app.mathtools import create_math_tutor
 from app.english_tools import EnglishTutorTool, TutorResponseAdapter, create_enhanced_tutor
 from langchain.agents import initialize_agent, AgentType
@@ -28,6 +29,7 @@ WOLFRAM_APPID = os.getenv("WOLFRAM_APPID")
 def get_toolbox():
     """Create tools once, lazily, in-process."""
     llm_wrapper = OpenAIWrapper(client)
+    sat_tutor = ConversationalSATTutor(llm_wrapper, WOLFRAM_APPID)
     toolbox = {
         "llm_wrapper": llm_wrapper,
         "math_solver": MathSolverTool(llm=llm_wrapper),
@@ -35,8 +37,40 @@ def get_toolbox():
         "latex_formatter": LaTeXFormatterTool(llm=llm_wrapper),
         "parser": MathResponseParser(),
         "english_tutor": create_enhanced_tutor(llm_wrapper, enable_ml=True),
+        "sat_tutor": sat_tutor,
+        "sat_english_tutor": ConversationalEnglishSATTutor(llm_wrapper)
     }
     return toolbox
+
+#global toolbox for all tools
+tb = get_toolbox()
+
+@router.post("/ask")
+def ask(query: EnhancedQuery):
+    """Enhanced SAT Math question handler with comprehensive error handling"""
+    sat_tutor = tb["sat_tutor"]
+    
+    # Use the new agent
+    solution = sat_tutor.solve(query.question)
+    
+    return {
+        "solution": solution
+    }
+
+
+@router.post("/ask_english")
+def ask_english(query: EnglishQuery):
+    """Enhanced SAT English question handler with comprehensive error handling"""
+
+    #load all of the tools once
+    english_tutor     = tb["sat_english_tutor"]
+    
+    # Use the new agent
+    solution = english_tutor.solve(query.question, query.passage if query.passage else None)
+    
+    return {
+        "solution": solution
+    }
 
 #this is the old ask question function
 # @router.post("/ask")
@@ -206,73 +240,3 @@ def get_toolbox():
 #         "confidence": solution.confidence,
 #         "method": solution.method_used
 #     }
-
-@router.post("/ask")
-def ask(query: EnhancedQuery):
-    """Enhanced SAT Math question handler with comprehensive error handling"""
-    tb = get_toolbox()
-    sat_tutor = ConversationalSATTutor(tb["llm_wrapper"], WOLFRAM_APPID)
-    
-    # Use the new agent
-    solution = sat_tutor.solve(query.question)
-    
-    return {
-        "solution": solution
-    }
-
-
-@router.post("/ask_english")
-def ask_english(query: EnglishQuery):
-    """Enhanced SAT English question handler with comprehensive error handling"""
-
-    #load all of the tools once
-    tb = get_toolbox()
-    english_tutor     = tb["english_tutor"]
-
-    try:
-        print(f"Question: {query.question}")
-        print(f"Passage: {query.passage}")
-        # Use enhanced tutor
-        result = english_tutor._run(question=query.question, passage=query.passage)
-        print(f"Raw result: {result}")
-        
-        # Handle different result formats
-        if isinstance(result, dict):
-            data = result
-        elif isinstance(result, str):
-            try:
-                data = json.loads(result)
-            except json.JSONDecodeError as e:
-                print(f"JSON decode error: {e}")
-                print(f"Raw result was: {result}")
-                raise HTTPException(
-                    status_code=422, 
-                    detail=f"Invalid JSON response from model. Raw response: {result[:200]}..."
-                )
-        else:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Unexpected result type: {type(result)}"
-            )
-        
-        # Validate against Pydantic model
-        try:
-            resp = TutorResponseAdapter.validate_python(data)
-            return resp
-        except Exception as e:
-            print(f"Validation error: {e}")
-            print(f"Data was: {data}")
-            raise HTTPException(
-                status_code=422,
-                detail=f"Response validation failed: {str(e)}"
-            )
-            
-    except HTTPException:
-        # Re-raise HTTP exceptions
-        raise
-    except Exception as e:
-        print(f"Unexpected error in ask_english: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )

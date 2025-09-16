@@ -1,6 +1,10 @@
 import { useState, React } from 'react';
 import '../CSS/QuestionsPage.css'
 import ReactMarkdown from 'react-markdown'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
+import SubjectToggle from '../SupportingComponents/SubjectToggle.jsx';
 
 export default function QuestionsPage() {
     const [question, setQuestion] = useState("");
@@ -84,29 +88,45 @@ export default function QuestionsPage() {
 
     return (
       <div className='questions_page_container'>
+        <div className='qpage_toggle_buttons'>
+          <SubjectToggle />
+        </div>
           {/* chat history along with chat output */}
           <div className='qpage_chat_box'>
-            {chatHistory.map((message, index) => (
-              <div className='qpage_messages_container' key={index}>
-                {/* User message with wrapper for right alignment */}
-                <div className='message-wrapper user'>
-                  <div className='chat_box_user_message'>{message.question}</div>
-                </div>
-                
-                {/* AI message with wrapper for left alignment */}
-                <div className='message-wrapper ai'>
-                  <div className='chat_box_ai_message'>
-                    {message.status === 'pending' ? (
-                      <div className="typing-indicator">Loading...</div>
-                    ) : message.status === 'error' ? (
-                      <div>Sorry, I couldn't process that request.</div>
-                    ) : (
-                      <ReactMarkdown>{message.response}</ReactMarkdown>
-                    )}
-                  </div>
+            {chatHistory.length === 0 ? (
+              <div className='qpage_no_messages'>
+                <div>
+                  Type something to start a conversation with Tutor Guy!
                 </div>
               </div>
-            ))}
+            ) : (
+              chatHistory.map((message, index) => (
+                <div className='qpage_messages_container' key={index}>
+                  {/* User message with wrapper for right alignment */}
+                  <div className='message-wrapper user'>
+                    <div className='chat_box_user_message'>{message.question}</div>
+                  </div>
+                  
+                  {/* AI message with wrapper for left alignment */}
+                  <div className='message-wrapper ai'>
+                    <div className='chat_box_ai_message'>
+                      {message.status === 'pending' ? (
+                        <div className="typing-indicator">Loading...</div>
+                      ) : message.status === 'error' ? (
+                        <div>Sorry, I couldn&apos;t process that request.</div>
+                      ) : (
+                        <ReactMarkdown 
+                            remarkPlugins={[remarkMath]}
+                            rehypePlugins={[rehypeKatex]}
+                        >
+                            {message.response}
+                        </ReactMarkdown>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         <div className='qpage_form'>
           {error && (

@@ -10,7 +10,8 @@
   height: 100%;
   width: 90%;
   margin: 1rem;
-  /* border: 1px solid black; */
+  border: 1px solid black;
+  border-radius: 10px;
   overflow-y: scroll;
 }
 
@@ -95,4 +96,17 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem;
+}
+
+.qpage_no_messages {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  align-items: center;
+}
+
+.qpage_toggle_buttons {
+  margin: 1rem;
 }

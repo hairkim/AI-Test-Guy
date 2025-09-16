@@ -34,6 +34,11 @@ class ConversationalSATTutor:
         - Use numbered lists for solution steps
         - Use code blocks for formulas: ```formula here```
         - Add a clear "Answer" section at the end
+
+        Also format your math using LaTeX:
+        - Wrap inline math with single dollar signs: $\\frac{{2}}{{3}}$
+        - Use double dollar signs for display math: $$x = \\frac{{-b \\pm \\sqrt{{b^2-4ac}}}}{{2a}}$$
+        - Always escape backslashes in LaTeX: \\frac{{a}}{{b}} not \frac{{a}}{{b}}
         """
         
         # Get response with COMPUTE tags

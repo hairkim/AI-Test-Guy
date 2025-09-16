@@ -12,7 +12,7 @@ import TakeATest from './PageComponents/MainPages/TakeATest.jsx'
 import MainPracticePage from './PageComponents/MainPages/MainPracticePage.jsx'
 import PracticeQuestions from './PageComponents/MainPages/PracticeQuestions.jsx'
 import QuestionsPage from './PageComponents/MainPages/QuestionsPage.jsx'
-// import EnglishPage from './PageComponents/MainPages/EnglishPage.jsx'
+import EnglishPage from './PageComponents/MainPages/EnglishPage.jsx'
 import { AuthProvider } from './ClientStuff/AuthContext.jsx'
 // import PlaceholderPage from './PlaceholderPage';
 
@@ -34,6 +34,7 @@ const App = () => {
         <Route path="/practice" element={<MainPracticePage/> } />
         <Route path="/practice-questions" element={<PracticeQuestions/> } />
         <Route path="/query" element={<QuestionsPage/> } />
+        <Route path="/english" element={<EnglishPage/> } />
       </Routes>
       </AuthProvider>
     </Router>

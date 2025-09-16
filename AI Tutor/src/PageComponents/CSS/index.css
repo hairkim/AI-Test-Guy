@@ -17,6 +17,7 @@
     #facdaf 70%,    /* End of gradient at 50% */
     #f5d4bf 100%    /* White continues to bottom */
 );
+  overflow: hidden;
 }
 
 a {
