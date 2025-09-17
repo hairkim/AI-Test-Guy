@@ -9,28 +9,36 @@
 //    - show a "Retake Test" button
 //    - some more stuff i need to think about
 
+
+//states: idle, active, error, module2_loading, module2_loaded, loading_results, completed
+
 import React, { useState } from 'react'
-import './MathPage.css'
-import AppHeader from './AppHeader.jsx'
-import SatQuestion from './SatQuestion.jsx'
-import { useAuth } from '../ClientStuff/AuthContext.jsx';
+import '../CSS/MathPage.css'
+import SatQuestion from '../SupportingComponents/SatQuestion.jsx'
+import { useAuth } from '../../ClientStuff/AuthContext.jsx';
+import ExamTimer from '../SupportingComponents/ExamTimer.jsx'
+import { useParams } from 'react-router-dom'
 
 
-export default function MathTestPage() {
+export default function TestPage() {
+    const { examType } = useParams()
     const { user } = useAuth();
     const [questions, setQuestions] = useState([])
     const [testState, setTestState] = useState("idle")
+    const [isLoading, setIsLoading] = useState(false)
     const [currentIndex, setCurrentIndex] = useState(0)
     const [userAnswer, setUserAnswer] = useState({})
     const [module, setModule] = useState(1)
     const [examId, setExamId] = useState(null)
     const [score, setScore] = useState(null)
     const [percentage, setPercentage] = useState(null)
+    const [timer, setTimer] = useState(0);
+    const [timerWarning, setTimerWarning] = useState('')
 
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
     const startTest = async () => {
-        setTestState("loading")
+        setIsLoading(true)
         setUserAnswer({})
         try {
             const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/generate`, {
@@ -39,21 +47,43 @@ export default function MathTestPage() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                exam_type: 'math_only',
-                user_id: user.id
+                exam_type: examType,
+                user_id: user.id,
+                started_at: new Date().toISOString()
             })
         })
+        if (response.ok) {
             const data = await response.json()
+            if (examType === 'math_only') {
+                setTimer(data.math_module_time_limit)
+            } else if (examType === 'english_only') {
+                setTimer(data.eng_module_time_limit)
+            }
             setQuestions(data.questions)
             setExamId(data.exam_id)
             setModule(1)
             setCurrentIndex(0)
             console.log("fetching worked, showing some questions: " + data.questions[0].question_text)
             setTestState("active")
+        }
         } catch (error) {
             console.error("Error loading questions:", error)
             setTestState("error")
         }
+        finally {
+            setIsLoading(false)
+        }
+    }
+
+    const handleTimeUp = () => {
+        console.log("time up");
+        submitTest()
+    }
+
+    const handleTimeWarning = (message) => {
+        setTimerWarning(message)
+        // Clear warning after 5 seconds
+        setTimeout(() => setTimerWarning(''), 5000)
     }
 
     const selectNextQuestion = () => {
@@ -85,7 +115,23 @@ export default function MathTestPage() {
             return
         }
         console.log("submitting test")
-        setTestState("loading")
+        if(module === 1) {
+            setTestState("module2_loading")
+        } else {
+            setTestState("loading_results")
+        }
+        setIsLoading(true)
+
+        const requestBody = {
+            exam_id: examId,
+            answers: userAnswer,
+            module: module
+        };
+        
+        // Add end time only for module 2
+        if (module === 2) {
+            requestBody.time_ended = new Date().toISOString();
+        }
         
         try {
             const response = await fetch(`${BACKEND_URL}/api/sat/submit_test/${module}`, {
@@ -93,11 +139,7 @@ export default function MathTestPage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    exam_id: examId,
-                    answers: userAnswer,
-                    module: module
-                })
+                body: JSON.stringify(requestBody)
             })
 
             if (!response.ok) {
@@ -113,7 +155,7 @@ export default function MathTestPage() {
                 setModule(2)
                 setCurrentIndex(0)
                 setUserAnswer({}) // Reset answers for module 2
-                setTestState("module2_active")
+                setTestState("module2_loaded")
             } else {
                 // Module 2 completed - show final results
                 setScore(data.score)
@@ -123,22 +165,70 @@ export default function MathTestPage() {
 
         } catch (error) {
             console.error("Error submitting test:", error)
+            setIsLoading(false)
             setTestState("error")
+        } finally {
+            setIsLoading(false)
         }
     }
 
 
     return (
         <div className='main_container'>
-            <AppHeader />
+            {(testState === 'active' || testState === 'module2_active') && (
+                <ExamTimer 
+                    timeLimit={timer}
+                    isActive={testState === 'active' || testState === 'module2_active'}
+                    onTimeUp={handleTimeUp}
+                    module={module}
+                    onWarning={handleTimeWarning}
+                />
+            )}
+
+            {/* Warning message */}
+            {timerWarning && (
+                <div style={{
+                    position: 'fixed',
+                    top: '100px',
+                    right: '20px',
+                    backgroundColor: '#FEF3C7',
+                    border: '1px solid #F59E0B',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    fontSize: '14px',
+                    color: '#92400E',
+                    zIndex: 1001
+                }}>
+                    {timerWarning}
+                </div>
+            )}
             {testState === 'idle' && (
                 <div className="start_page">
-                    <h1>Math Test Page</h1>
-                    <button onClick={startTest} disabled={testState === 'loading'}>
-                        {testState === 'idle' ? 'Start Test' 
-                        : testState === 'loading' ? 'Loading...' 
-                        : 'Error'}
-                    </button>
+                    <h1>{examType === 'math_only' ? 'Math Test Page' : 'English Test Page'}</h1>
+                    <div className='start_button'>
+                        <button onClick={startTest} disabled={isLoading}>
+                            {!isLoading ? 'Start Test' : 'Loading...'}
+                        </button>
+                        <div className='test-info'>
+                            {examType === 'math_only' ? (
+                                <>
+                                    <h2>You are about to take a practice math only exam</h2>
+                                    <p>The test includes 2 modules, each with 22 questions</p>
+                                    <p>You will be given module 2 questions based on previous scoring</p>
+                                    <p>There is no penalty for wrong answers</p>
+                                    <p>Good luck!</p>
+                                </>
+                            ) : (
+                                <>
+                                    <h2>You are about to take a practice english only exam</h2>
+                                    <p>The test includes 2 modules, each with 27 questions</p>
+                                    <p>You will be given module 2 questions based on previous scoring</p>
+                                    <p>There is no penalty for wrong answers</p>
+                                    <p>Good luck!</p>
+                                </>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
             {(testState === 'active' || testState === 'module2_active') && (
@@ -153,12 +243,23 @@ export default function MathTestPage() {
                     </div>   
                 </div>
             )}
+            {testState === 'loading_results' && (
+                <div className="loading_results">
+                    <h1>Loading Results...</h1>
+                </div>
+            )}
             {(testState === 'completed' && score !== null && percentage !== null) && (
                 <div className="results_page">
                     <h1>Test Results</h1>
                     <p>Score: {score}</p>
                     <p>Percentage: {percentage}</p>
                     <button onClick={startTest}>Retake Test</button>
+                </div>
+            )}
+            {(testState === 'module2_loaded' || testState === 'module2_loading') && (
+                <div className="loading_page">
+                    <h1>You have reached the end of Module 1</h1>
+                    <button onClick={() => setTestState('module2_active')} disabled={isLoading}>{isLoading ? 'Loading Module 2' : 'Start Module 2'}</button>
                 </div>
             )}
         </div>

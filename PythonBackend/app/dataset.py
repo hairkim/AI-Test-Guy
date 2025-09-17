@@ -15,7 +15,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 #for embeddings
 # dataset = load_dataset("ndavidson/sat-math-chain-of-thought") dataset for initial embeddings
-csv_path = "sat_questions_cleaned.csv"
+csv_path = "sat_english_clean_passages.csv"
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 db = SessionLocal()
 
@@ -331,6 +331,3 @@ setup_complete_database()
 #     exit(1)
     
 # verify_import()
-
-
-

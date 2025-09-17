@@ -24,6 +24,7 @@ class MockExamRequest(BaseModel):
     exam_type: str = Field(..., description="math_only, english_only, or full_sat")
     difficulty_mix: Optional[Dict[str, int]] = None
     user_id: Optional[str] = None
+    started_at: Optional[str] = None
 
 class MockExamResponse(BaseModel):
     exam_id: str
@@ -32,13 +33,16 @@ class MockExamResponse(BaseModel):
     module_questions: int
     total_questions: int
     questions: List[Dict]
-    time_limit_minutes: int
+    eng_module_time_limit: int = 32
+    math_module_time_limit: int = 35
+    break_time_limit: int = 10
 
 
 class SubmitTestRequest(BaseModel):
     exam_id: str
     answers: Dict[str, str]
     module: int
+    time_ended: Optional[str] = None
 
 class SubmitTestResponse(BaseModel):
     score: int
@@ -81,9 +85,9 @@ def get_difficulty_distribution(exam_type: str, custom_mix: Optional[Dict[str, i
     if exam_type == "math_only":
         return {"Easy": 7, "Medium": 10, "Hard": 5}  # 22 -> 7, 10, 5
     elif exam_type == "english_only":
-        return {"Easy": 12, "Medium": 30, "Hard": 10}  # Total: 52 (real SAT english)
+        return {"Easy": 6, "Medium": 16, "Hard": 5}  # Total: 27 (real SAT english) module 1 should have 27 questions
     elif exam_type == "full_sat":
-        return {"Easy": 27, "Medium": 60, "Hard": 23}  # Total: 110 (full SAT)
+        return {"Easy": 27, "Medium": 60, "Hard": 23}  # Total: 110 (full SAT) i dont think this will ever get used
     else:
         return {"Easy": 5, "Medium": 10, "Hard": 5}    # Default practice
 
@@ -176,20 +180,20 @@ def generate_module2_questions(db: Session, exam: MockExam, difficulty_level: st
     if difficulty_level == "higher":
         # More challenging distribution
         if exam.exam_type == "math_only":
-            difficulty_mix = {"Easy": 3, "Medium": 8, "Hard": 11}
+            difficulty_mix = {"Easy": 3, "Medium": 8, "Hard": 11} #total 22 questions
         elif exam.exam_type == "english_only": 
-            difficulty_mix = {"Easy": 5, "Medium": 10, "Hard": 11}
+            difficulty_mix = {"Easy": 5, "Medium": 10, "Hard": 12} #total 27 questions
         else:  # full_sat - split between math and english
             math_mix = {"Easy": 3, "Medium": 8, "Hard": 11}
-            english_mix = {"Easy": 5, "Medium": 10, "Hard": 11}
+            english_mix = {"Easy": 5, "Medium": 10, "Hard": 12}
     else:  # lower difficulty
         if exam.exam_type == "math_only":
-            difficulty_mix = {"Easy": 11, "Medium": 8, "Hard": 3}
+            difficulty_mix = {"Easy": 11, "Medium": 8, "Hard": 3} #total 22 questions
         elif exam.exam_type == "english_only":
-            difficulty_mix = {"Easy": 16, "Medium": 8, "Hard": 2}
+            difficulty_mix = {"Easy": 16, "Medium": 9, "Hard": 2} #total 27 questions
         else:  # full_sat
             math_mix = {"Easy": 11, "Medium": 8, "Hard": 3}
-            english_mix = {"Easy": 16, "Medium": 8, "Hard": 2}
+            english_mix = {"Easy": 16, "Medium": 9, "Hard": 2}
     
     questions = []
     
@@ -217,7 +221,7 @@ def score_exam(exam: MockExam) -> (int, int):
     
     combinedScore = module1_score + module2_score
 
-    if(exam.module1_difficulty_assigned == "lower"):
+    if(exam.module2_difficulty_assigned == "lower"):
         score = round_to_nearest_10( 200 + (combinedScore/44) * (690 - 200) )
     else:
         score = round_to_nearest_10( 300 + (combinedScore/44) * (800 - 300) )

@@ -1,0 +1,17 @@
+.title-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.history-loading-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.history-no-exams-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}

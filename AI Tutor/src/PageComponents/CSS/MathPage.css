@@ -17,3 +17,21 @@
     margin-top: 20px;
     margin-left: 29vw;
 }
+
+.start_page button {
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+
+.start_button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 3rem;
+    gap: 5rem;
+}
+
+.submit_container {
+    align-items: center;
+}

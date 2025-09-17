@@ -1,0 +1,24 @@
+.practice_question_container {
+    display: flex;
+    height: 100vh;
+}
+
+.question_container {
+    width: 60%;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.ai_container {
+    width: 40%;
+}
+
+.practice-question-buttons {
+    display: flex;
+    gap: 3rem;
+    justify-content: space-between;
+    margin: 0 1.5rem;
+    margin-bottom: 2rem;
+}
