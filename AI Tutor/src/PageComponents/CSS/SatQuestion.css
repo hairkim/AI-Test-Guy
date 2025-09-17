@@ -3,6 +3,8 @@
     margin: 0 auto;
     padding: 20px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    height: 100%;
+    overflow: hidden;
 }
 
 .paragraph {
@@ -13,6 +15,11 @@
     font-style: italic;
     line-height: 1.6;
     color: black;
+
+    /* Add scrolling for long paragraphs */
+    max-height: 300px; /* Adjust this height as needed */
+    overflow-y: auto; /* Enable vertical scrolling */
+    word-wrap: break-word;
 }
 
 .question-text {

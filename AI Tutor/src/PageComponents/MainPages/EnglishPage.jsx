@@ -1,10 +1,9 @@
-import { useState, React } from 'react';
+import { useState, React, useRef, useEffect } from 'react';
 import '../CSS/EnglishPage.css'
 import ReactMarkdown from 'react-markdown'
-import remarkMath from 'remark-math'
-import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import SubjectToggle from '../SupportingComponents/SubjectToggle.jsx';
+import StreamingMessage from '../MiscComponents/streaming';
 
 export default function EnglishPage() {
     const [question, setQuestion] = useState("");
@@ -12,8 +11,16 @@ export default function EnglishPage() {
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [chatHistory, setChatHistory] = useState([]);
-  
+
+    const chatContainerRef = useRef(null);
+
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
+
+    useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [chatHistory]);
   
     const submitPrompt = async () => {
       if (!question.trim()) {
@@ -48,17 +55,19 @@ export default function EnglishPage() {
           const data = await res.json();
 
           if (res.ok) {
-              // Update the last conversation with the response
-              setChatHistory(prev => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = {
-                      ...updated[updated.length - 1],
-                      response: data.solution || "",
-                      status: 'complete'
-                  };
-                  return updated;
-              });
-              setError("");
+            const fullResponse = data.solution || "";
+
+            // Update the last conversation with the response
+            setChatHistory(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                    ...updated[updated.length - 1],
+                    response: fullResponse,
+                    status: 'streaming'
+                };
+                return updated;
+            });
+            setError("");
           } else {
               // Mark as error
               setChatHistory(prev => {
@@ -86,7 +95,15 @@ export default function EnglishPage() {
         e.preventDefault();
         submitPrompt();
     }
-};
+  };
+
+  const handleTypingComplete = (messageIndex) => {
+    setChatHistory(prev => {
+        const updated = [...prev];
+        updated[messageIndex].status = 'complete';
+        return updated;
+    });
+    };
 
     return (
       <div className='questions_page_container'>
@@ -114,7 +131,10 @@ export default function EnglishPage() {
                 </div>
                 ) : (
                 chatHistory.map((message, index) => (
-                    <div className='english_qpage_messages_container' key={index}>
+                <div className='english_qpage_messages_container' 
+                key={index} 
+                ref={chatContainerRef}
+                >
                     {/* User message with wrapper for right alignment */}
                     <div className='message-wrapper user'>
                         <div className='chat_box_user_message'>{message.question}</div>
@@ -123,21 +143,21 @@ export default function EnglishPage() {
                     {/* AI message with wrapper for left alignment */}
                     <div className='message-wrapper ai'>
                         <div className='chat_box_ai_message'>
-                        {message.status === 'pending' ? (
-                            <div className="typing-indicator">Loading...</div>
-                        ) : message.status === 'error' ? (
-                            <div>Sorry, I couldn&apos;t process that request.</div>
-                        ) : (
-                            <ReactMarkdown 
-                                remarkPlugins={[remarkMath]}
-                                rehypePlugins={[rehypeKatex]}
-                            >
-                                {message.response}
-                            </ReactMarkdown>
-                        )}
+                            {message.status === 'pending' ? (
+                                <div className="typing-indicator">Loading...</div>
+                            ) : message.status === 'streaming' ? (
+                                <StreamingMessage 
+                                    response={message.response} 
+                                    onComplete={() => handleTypingComplete(index)}
+                                />
+                            ) : message.status === 'error' ? (
+                                <div>Sorry, I couldn&apos;t process that request.</div>
+                            ) : (
+                                <ReactMarkdown>{message.response}</ReactMarkdown>
+                            )}
                         </div>
                     </div>
-                    </div>
+                </div>
                 ))
                 )}
             </div>

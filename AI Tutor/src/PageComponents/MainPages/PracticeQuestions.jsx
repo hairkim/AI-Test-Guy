@@ -31,7 +31,9 @@ export default function PracticeQuestions() {
             {questions && (
                 <div className='practice_question_container'>
                     <div className='question_container'>
-                        <SatQuestion key={questions[currentIndex].id} question={questions[currentIndex]} index={currentIndex + 1} selectedAnswer={userAnswer[questions[currentIndex].id]} handleAnswerSelect={(questionId, answer) => handleAnswerSelect(questionId, answer)} />
+                        <div className='thesatquestioncontainer'>
+                            <SatQuestion key={questions[currentIndex].id} question={questions[currentIndex]} index={currentIndex + 1} selectedAnswer={userAnswer[questions[currentIndex].id]} handleAnswerSelect={(questionId, answer) => handleAnswerSelect(questionId, answer)} />
+                        </div>
                         <div className="practice-question-buttons">
                             <button onClick={handlePreviousQuestion} disabled={currentIndex === 0}>Previous</button>
                             <button onClick={handleNextQuestion} disabled={currentIndex === questions.length - 1}>Next</button>

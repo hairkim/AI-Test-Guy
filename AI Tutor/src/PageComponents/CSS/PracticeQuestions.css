@@ -5,7 +5,10 @@
 
 .question_container {
     width: 60%;
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
 }
 
 .ai_container {
@@ -13,11 +16,9 @@
 }
 
 .practice-question-buttons {
-    position: absolute; /* Change from fixed to absolute */
-    bottom: 2rem;
-    left: 50%; /* Center horizontally */
-    transform: translateX(-50%); /* Perfect centering */
-    z-index: 1000;
     display: flex;
-    gap: 2rem; /* Reduced from 10rem */
+    gap: 3rem;
+    justify-content: space-between;
+    margin: 0 1.5rem;
+    margin-bottom: 2rem;
 }

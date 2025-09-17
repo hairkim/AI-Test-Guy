@@ -50,7 +50,9 @@ export default function ExamHistory() {
                 ))
             )}
             {(!isLoading && exams.length === 0) && (
-                <p>No exams found</p>
+                <div className='history-no-exams-container'>
+                    <p>No exams found</p>
+                </div>
             )}
         </div>
     );

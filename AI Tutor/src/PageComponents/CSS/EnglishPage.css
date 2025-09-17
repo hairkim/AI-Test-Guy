@@ -117,7 +117,7 @@
 .english_qpage_passage_container {
     height: 100%;
     width: 30%;
-    border: 1px solid black;
+    border: 1px solid #f4881c;
     overflow-y: scroll;
     border-radius: 10px;
 }
@@ -141,7 +141,7 @@
 
 .english_qpage_messages_main_container {
     width: 70%;
-    border: 1px solid black;
+    border: 1px solid #f4881c;
     border-radius: 10px;
     overflow-y: scroll;
 }
