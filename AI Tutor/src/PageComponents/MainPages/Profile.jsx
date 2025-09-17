@@ -2,13 +2,15 @@ import React from 'react'
 import { useAuth } from '../../ClientStuff/AuthContext.jsx'
 
 export default function Profile() {
-    const { user } = useAuth();
+    const { userData } = useAuth();
 
     return (
         <div>
             <h1>Profile Page</h1>
-            <p>{user?.email}</p>
-            <p>{user?.user_metadata?.display_name}</p>
+            <p>{userData?.email}</p>
+            <p>{userData?.name}</p>
+            <p>{userData?.picture_url || "No picture"}</p>
+            <p>{userData?.level}</p>
         </div>
     )
 }

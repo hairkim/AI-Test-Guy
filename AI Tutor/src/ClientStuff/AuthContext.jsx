@@ -36,38 +36,6 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  // Enhanced signIn wrapper
-  const handleSignIn = async (email, password) => {
-    const result = await signIn(email, password)
-    
-    if (result.userData) {
-      setUserData(result.userData)
-    }
-    
-    return result
-  }
-
-  // Enhanced signUp wrapper
-  const handleSignUp = async (email, password, username) => {
-    const result = await signUp(email, password, username)
-    
-    if (result.userData) {
-      setUserData(result.userData)
-    }
-    
-    return result
-  }
-
-  // Enhanced signOut wrapper
-  const handleSignOut = async () => {
-    const result = await signOut()
-    
-    if (!result.error) {
-      setUserData(null)
-    }
-    
-    return result
-  }
 
   // Function to update user data
   const updateUserData = async (updates) => {
@@ -88,54 +56,37 @@ export const AuthProvider = ({ children }) => {
   }
 
   useEffect(() => {
-    // Get initial session
-    getSession().then(async ({ data: { session } }) => {
-      console.log('🔍 Initial session check:', session)
+    
+    getSession().then(({ data: { session } }) => {
       setSession(session)
-      
-      if (session?.user) {
-        // Fetch user data when session exists
-        await fetchUserData(session.user)
-      }
-      
       setLoading(false)
     })
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('🔄 Auth state changed:', event)
         console.log('📋 New session:', session)
-        
         setSession(session)
-        
-        if (session?.user) {
-          // Handle sign in/up - fetch user data
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            await fetchUserData(session.user)
-          }
-        } else {
-          // Handle sign out
-          if (event === 'SIGNED_OUT') {
+
+        if(event === "SIGNED_OUT") {
             setUserData(null)
-          }
+        } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          fetchUserData(session.user)
         }
-        
         setLoading(false)
       }
     )
 
     return () => subscription.unsubscribe()
   }, [])
-
   const value = {
     session,
-    user: session?.user || null, // Supabase auth user
-    userData, // Your custom user data
+    user: session?.user || null,
+    userData,
     loading,
-    signIn: handleSignIn,
-    signUp: handleSignUp,
-    signOut: handleSignOut,
+    signIn,
+    signUp,
+    signOut,
     updateUserData,
     fetchUserData,
   }

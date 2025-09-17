@@ -94,12 +94,20 @@ export const signIn = async (email, password) => {
 
 // Sign out
 export const signOut = async () => {
-  const { error } = await supabase.auth.signOut()
-
-  if (!error) {
-    alert('You have been signed out')
+  console.log('reached signout function in auth.js')
+  
+  try {
+    const { error } = await supabase.auth.signOut()
+    
+    if (!error) {
+      alert('You have been signed out')
+    }
+    return { error, action: "signed out" }
+    
+  } catch (err) {
+    console.error('SignOut exception:', err)
+    return { error: err, action: "failed to sign out" }
   }
-  return { error }
 }
 
 // Get current session
@@ -132,44 +140,44 @@ export const signInOrSignUp = async (email, password, username) => {
     }
   }
 
-  export const getUserByEmail = async (email) => {
-    try {
-      const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .single()
-  
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching user by email:', error)
-        return null
-      }
-  
-      return user
-    } catch (error) {
-      console.error('Error in getUserByEmail:', error)
+export const getUserByEmail = async (email) => {
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single()
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching user by email:', error)
       return null
     }
+
+    return user
+  } catch (error) {
+    console.error('Error in getUserByEmail:', error)
+    return null
   }
-  
-  // New helper function to update user data
-  export const updateUser = async (userId, updates) => {
-    try {
-      const { data: updatedUser, error } = await supabase
-        .from('users')
-        .update(updates)
-        .eq('id', userId)
-        .select()
-        .single()
-  
-      if (error) {
-        console.error('Error updating user:', error)
-        return null
-      }
-  
-      return updatedUser
-    } catch (error) {
-      console.error('Error in updateUser:', error)
+}
+
+// New helper function to update user data
+export const updateUser = async (userId, updates) => {
+  try {
+    const { data: updatedUser, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating user:', error)
       return null
     }
+
+    return updatedUser
+  } catch (error) {
+    console.error('Error in updateUser:', error)
+    return null
   }
+}
