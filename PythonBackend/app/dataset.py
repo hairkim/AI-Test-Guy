@@ -323,11 +323,11 @@ def setup_complete_database():
     return vectorstore
 
 
-# setup_complete_database()
-try:
-    import_csv_to_database(csv_path)
-except Exception as e:
-    print(f"❌ Import failed: {e}")
-    exit(1)
+setup_complete_database()
+# try:
+#     import_csv_to_database(csv_path)
+# except Exception as e:
+#     print(f"❌ Import failed: {e}")
+#     exit(1)
     
-verify_import()
+# verify_import()

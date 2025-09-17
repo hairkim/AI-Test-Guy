@@ -1,18 +1,27 @@
-import { useState, React } from 'react';
+import { useState, React, useEffect, useRef } from 'react';
 import '../CSS/QuestionsPage.css'
 import ReactMarkdown from 'react-markdown'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import SubjectToggle from '../SupportingComponents/SubjectToggle.jsx';
+import StreamingMessage from '../MiscComponents/streaming';
 
 export default function QuestionsPage() {
     const [question, setQuestion] = useState("");
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [chatHistory, setChatHistory] = useState([]);
+
+    const chatContainerRef = useRef(null);
   
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
+
+    useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [chatHistory]);
   
     const submitPrompt = async () => {
       if (!question.trim()) {
@@ -52,7 +61,7 @@ export default function QuestionsPage() {
                   updated[updated.length - 1] = {
                       ...updated[updated.length - 1],
                       response: data.solution || "",
-                      status: 'complete'
+                      status: 'streaming'
                   };
                   return updated;
               });
@@ -86,6 +95,14 @@ export default function QuestionsPage() {
     }
 };
 
+const handleTypingComplete = (messageIndex) => {
+  setChatHistory(prev => {
+      const updated = [...prev];
+      updated[messageIndex].status = 'complete';
+      return updated;
+  });
+};
+
     return (
       <div className='questions_page_container'>
         <div className='qpage_toggle_buttons'>
@@ -112,6 +129,11 @@ export default function QuestionsPage() {
                     <div className='chat_box_ai_message'>
                       {message.status === 'pending' ? (
                         <div className="typing-indicator">Loading...</div>
+                      ) : message.status === 'streaming' ? (
+                        <StreamingMessage 
+                            response={message.response} 
+                            onComplete={() => handleTypingComplete(index)}
+                        />
                       ) : message.status === 'error' ? (
                         <div>Sorry, I couldn&apos;t process that request.</div>
                       ) : (

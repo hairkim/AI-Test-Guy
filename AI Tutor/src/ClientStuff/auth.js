@@ -1,5 +1,53 @@
 import { supabase } from './SupabaseClient'
 
+const createOrGetUser = async (authUser) => {
+  if (!authUser) return null
+
+  try {
+    // First, try to get existing user by email
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', authUser.email)
+      .single()
+
+    if (existingUser && !fetchError) {
+      console.log('✅ Found existing user:', existingUser)
+      return existingUser
+    }
+
+    // If user doesn't exist (PGRST116 = no rows returned), create them
+    if (fetchError?.code === 'PGRST116') {
+      console.log('👤 Creating new user in users table...')
+      
+      const { data: newUser, error: insertError } = await supabase
+        .from('users')
+        .insert({
+          name: authUser.user_metadata?.display_name || authUser.email.split('@')[0],
+          email: authUser.email,
+          picture_url: authUser.user_metadata?.avatar_url || null,
+          level: 1 // Default level
+        })
+        .select()
+        .single()
+
+      if (newUser && !insertError) {
+        console.log('✅ Created new user:', newUser)
+        return newUser
+      } else {
+        console.error('❌ Error creating user:', insertError)
+        return null
+      }
+    } else {
+      console.error('❌ Error fetching user:', fetchError)
+      return null
+    }
+  } catch (error) {
+    console.error('❌ Error in createOrGetUser:', error)
+    return null
+  }
+}
+
 // Sign up
 export const signUp = async (email, password, username) => {
   const { data, error } = await supabase.auth.signUp({
@@ -7,14 +55,21 @@ export const signUp = async (email, password, username) => {
     password,
     options: {
         data: {
-          display_name: username,
-          // You can add more fields
-          avatar_url: '',
-          website: '',
+          display_name: username
         }
       }
   })
-  return { data, error, action: "signed up" }
+  let userData = null
+  if (data.user && !error) {
+    userData = await createOrGetUser(data.user)
+  }
+
+  return { 
+    data, 
+    error, 
+    action: "signed up",
+    userData // Include custom user data
+  }
 }
 
 // Sign in
@@ -23,7 +78,18 @@ export const signIn = async (email, password) => {
     email,
     password,
   })
-  return { data, error, action: "signed in" }
+
+  let userData = null
+  if (data.user && !error) {
+    userData = await createOrGetUser(data.user)
+  }
+
+  return { 
+    data, 
+    error, 
+    action: "signed in",
+    userData // Include custom user data
+  }
 }
 
 // Sign out
@@ -63,5 +129,47 @@ export const signInOrSignUp = async (email, password, username) => {
   
     } catch (error) {
       return { data: null, error, action: 'failed' }
+    }
+  }
+
+  export const getUserByEmail = async (email) => {
+    try {
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single()
+  
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching user by email:', error)
+        return null
+      }
+  
+      return user
+    } catch (error) {
+      console.error('Error in getUserByEmail:', error)
+      return null
+    }
+  }
+  
+  // New helper function to update user data
+  export const updateUser = async (userId, updates) => {
+    try {
+      const { data: updatedUser, error } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', userId)
+        .select()
+        .single()
+  
+      if (error) {
+        console.error('Error updating user:', error)
+        return null
+      }
+  
+      return updatedUser
+    } catch (error) {
+      console.error('Error in updateUser:', error)
+      return null
     }
   }

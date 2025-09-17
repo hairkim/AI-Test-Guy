@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom';
-import { signIn } from '../../ClientStuff/auth';
+import { useAuth } from '../../ClientStuff/AuthContext.jsx'
 import '../CSS/Login.css'
 
 export default function Login() {
@@ -8,6 +8,7 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const { signIn } = useAuth();
 
     const handleLogin = async (e) => {
         e.preventDefault();

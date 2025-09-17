@@ -1,5 +1,5 @@
 from pydantic import BaseModel, root_validator
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Index, Boolean, UniqueConstraint, CheckConstraint, DateTime
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Index, Boolean, UniqueConstraint, CheckConstraint, DateTime, func, text
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from .database import Base
 from pgvector.sqlalchemy import Vector
@@ -75,6 +75,38 @@ class EnglishQuery(BaseModel):
     #         return None
             
     #     return v
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    picture_url = Column(String)
+    created_at = Column(DateTime(timezone=True), nullable=False,
+                         server_default=text("timezone('UTC', now())"))
+    level = Column(Integer, default=1)
+
+class Task_Types(Base):
+    __tablename__ = "task_types"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+    description = Column(String)
+    points = Column(Integer, default=0)
+    category = Column(String)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), nullable=False,
+                         server_default=text("timezone('UTC', now())"))
+
+class UserTaskCompletion(Base):
+    __tablename__ = "user_task_completions"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    task_type_id = Column(Integer, ForeignKey("task_types.id"), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=False, 
+                         server_default=text("timezone('UTC', now())"))
+    __table_args__ = (
+        UniqueConstraint("user_id", "task_type_id", "completed_at", name="uq_user_task_completion"),
+    )
 
 class Exam(Base):
     __tablename__ = "exams"
@@ -312,41 +344,49 @@ class SATQuestionEmbedding(Base):
 class MockExam(Base):
     """Mock exam instances for users"""
     __tablename__ = "mock_exams"
-    
+
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(String)  # For when you add user accounts
-    exam_type = Column(String, nullable=False)  # "full_sat", "math_only", "english_only"
+    user_id = Column(String) # For when you add user accounts
+    exam_type = Column(String, nullable=False) # "full_sat", "math_only", "english_only"
+
 
     # Module 1 results
     module1_completed = Column(Boolean, default=False)
     module1_correct = Column(Integer, default=0)
-    module1_total = Column(Integer, default=22)  # 22 questions per module
+    module1_total = Column(Integer, default=22) # 22 questions per module
     module1_questions = Column(JSONB, default={})
-    
-    # Module 2 results  
+
+
+    # Module 2 results
     module2_completed = Column(Boolean, default=False)
     module2_correct = Column(Integer, default=0)
     module2_total = Column(Integer, default=22)
     module2_questions = Column(JSONB, default={})
     module2_difficulty_assigned = Column(String, default="lower")
-    
-    created_at = Column(DateTime, default=datetime.utcnow)
-    started_at = Column(DateTime)
-    completed_at = Column(DateTime)
-    
+
+
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("timezone('UTC', now())"))
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+
+
     # Calculated fields
     total_questions = Column(Integer)
     correct_answers = Column(Integer)
-    score = Column(Integer)  # Scaled score (200-800)
+    score = Column(Integer) # Scaled score (200-800)
     time_spent_minutes = Column(Integer)
-    
+
+
     # Exam configuration
-    config = Column(JSONB, default={})  # Store difficulty mix, section weights, etc.
-    
+    config = Column(JSONB, default={})
+
+
     # Relationships
     questions = relationship("MockExamQuestion", back_populates="mock_exam", cascade="all, delete-orphan")
 
-    @property 
+
+    @property
     def percentage_correct(self):
         if not self.total_questions:
             return 0
@@ -371,25 +411,31 @@ class MockExamQuestion(Base):
     sat_question = relationship("SATQuestion", back_populates="mock_exam_questions")
 
 
-# Optional: Keep track of user performance over time
 class UserPerformance(Base):
     """Track user performance across different domains/difficulties"""
     __tablename__ = "user_performance"
-    
+
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(String, nullable=False)
-    
+
+
     # Performance metrics by category
-    section = Column(String)  # "Math" or "English" 
-    domain = Column(String)   # "Advanced Math", "Information and Ideas", etc.
-    difficulty = Column(String)  # "Easy", "Medium", "Hard"
-    
+    section = Column(String) # "Math" or "English"
+    domain = Column(String) # "Advanced Math", "Information and Ideas", etc.
+    difficulty = Column(String) # "Easy", "Medium", "Hard"
+
+
     questions_attempted = Column(Integer, default=0)
     questions_correct = Column(Integer, default=0)
     average_time_seconds = Column(Integer)
-    
-    last_updated = Column(DateTime, default=datetime.utcnow)
-    
+
+
+    last_updated = Column(DateTime(timezone=True), nullable=False,
+    server_default=text("timezone('UTC', now())"),
+    server_onupdate=text("timezone('UTC', now())"))
+
+
     @property
     def accuracy_rate(self):
         if not self.questions_attempted:

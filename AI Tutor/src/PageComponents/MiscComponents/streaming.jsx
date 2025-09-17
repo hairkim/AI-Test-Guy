@@ -2,6 +2,9 @@ import useTypewriter from './typewriter.jsx';
 import ReactMarkdown from 'react-markdown';
 import React, { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 
 export default function StreamingMessage({ response, onComplete }) {
     const { displayText, isTyping } = useTypewriter(response, 5);
@@ -26,7 +29,7 @@ export default function StreamingMessage({ response, onComplete }) {
 
     return (
         <div>
-            <ReactMarkdown>{displayText}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{displayText}</ReactMarkdown>
             {isTyping && <span className="cursor">|</span>}
             <div ref={messageEndRef} />
         </div>
