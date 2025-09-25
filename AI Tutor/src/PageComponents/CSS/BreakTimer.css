@@ -1,0 +1,14 @@
+.break-timer {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.timer-display {
+    color: red;
+    text-align: center;
+}
+
+.break_timer_title {
+    align-self: center;
+}

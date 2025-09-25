@@ -6,70 +6,71 @@ const ExamTimer = ({
     isActive, 
     onTimeUp, 
     module,
-    onWarning = null // optional callback for warnings
+    onWarning = null 
 }) => {
-    const [timeRemaining, setTimeRemaining] = useState(timeLimit * 60) // convert to seconds
+    const [timeRemaining, setTimeRemaining] = useState(timeLimit * 60)
     const [isRunning, setIsRunning] = useState(false)
     const intervalRef = useRef(null)
     const warningShownRef = useRef(false)
 
-    // Start/stop timer based on isActive prop
-    useEffect(() => {
-        if (isActive && !isRunning) {
-            startTimer()
-        } else if (!isActive && isRunning) {
-            pauseTimer()
+    // Helper function to clear the timer
+    const clearTimer = () => {
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current)
+            intervalRef.current = null
         }
-    }, [isActive])
+        setIsRunning(false)
+    }
 
-    // Reset timer when timeLimit changes (new module)
+    // Start/stop timer based on isActive prop - FIXED
+    useEffect(() => {
+        if (isActive) {
+            startTimer()
+        } else {
+            clearTimer()
+        }
+    }, [isActive]) // Remove isRunning from dependencies
+
+    // Reset timer when timeLimit changes
     useEffect(() => {
         setTimeRemaining(timeLimit * 60)
         warningShownRef.current = false
+        clearTimer()
+        
         if (isActive) {
             startTimer()
         }
-    }, [timeLimit])
+    }, [timeLimit]) // Remove isActive from dependencies since it's handled above
 
     // Cleanup on unmount
     useEffect(() => {
         return () => {
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current)
-            }
+            clearTimer()
         }
     }, [])
 
     const startTimer = () => {
+        clearTimer() // Clear any existing timer
+        
         setIsRunning(true)
         intervalRef.current = setInterval(() => {
             setTimeRemaining(prev => {
                 const newTime = prev - 1
 
-                // Show warning at 5 minutes remaining
                 if (newTime === 300 && !warningShownRef.current && onWarning) {
                     warningShownRef.current = true
                     onWarning("5 minutes remaining!")
                 }
 
-                // Time's up
                 if (newTime <= 0) {
-                    clearInterval(intervalRef.current)
-                    setIsRunning(false)
-                    onTimeUp() // Auto-submit
+                    clearTimer()
+                    onTimeUp()
                     return 0
                 }
 
                 return newTime
             })
         }, 1000)
-    }
-
-    const pauseTimer = () => {
-        if (intervalRef.current) {
-            clearInterval(intervalRef.current)
-        }
-        setIsRunning(false)
     }
 
     const formatTime = (seconds) => {

@@ -28,13 +28,15 @@ export default function HomePage() {
         }
     }
 
-    const [recentExams, setRecentExams] = useState([])
+    const [recentExams, setRecentExams] = useState(null)
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
     useEffect(() => {
         const loadRecentExams = async () => {
             const exams = await fetchMostRecentExams()
+            console.log("exams: ", exams)
             setRecentExams(exams)
+            console.log("recent exams: ", recentExams)
         }
         
         if (session) { // Only fetch when authenticated
@@ -42,18 +44,18 @@ export default function HomePage() {
         }
         else {
             // Clear exam data when logged out
-            setRecentExams([])
+            setRecentExams(null)
         }
-    }, [session])
+    }, [session?.access_token])
 
-    //fetch the 2 or 3 most recent exams
+
     const fetchMostRecentExams = async () => {
         try {
             const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/history`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}` // Include auth token
+                    'Authorization': `Bearer ${session.access_token}`
                 }
             })
     
@@ -63,15 +65,22 @@ export default function HomePage() {
     
             const allExams = await response.json()
             
-            // Sort by created_at descending (most recent first) and take first 2
-            const recentExams = allExams
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                .slice(0, 2)
+            // Filter for completed exams only, then get the most recent one
+            const completedExams = allExams.filter(exam => exam.completed_at !== null)
             
-            return recentExams
+            if (completedExams.length === 0) {
+                console.log("No completed exams found")
+                return null // or [] if you prefer empty array
+            }
+            
+            // Sort by completed_at descending and take the first (most recent)
+            const mostRecentCompleted = completedExams
+                .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at))[0]
+            console.log(mostRecentCompleted)
+            return mostRecentCompleted
         } catch (error) {
             console.error('Error fetching recent exams:', error)
-            return [] // Return empty array if error
+            return null // Return null if error
         }
     }
 
@@ -98,8 +107,10 @@ export default function HomePage() {
             <div className='middle-content'>
                 <div className='most-recent-exam'>
                     <h2>Most Recent Exam Score</h2>
-                    {recentExams.length > 0 && (
-                        <ScoreCircle examType={recentExams[0].exam_type} score={recentExams[0].score} />
+                    {recentExams ? (
+                        <ScoreCircle examType={recentExams.exam_type} score={recentExams.total_score} />
+                    ) : (
+                        <p>No recent exams found</p>
                     )}
                 </div>
                 <div className='daily-tasks'>
@@ -118,7 +129,7 @@ export default function HomePage() {
 
             {/* Bottom content is for previous exam scores */}
             <div className='bottom-content'>
-                <h2>Previous Exam Scores</h2>
+                {/* show schools Safety/Target/Reach */}
             </div>
         </div>
     )

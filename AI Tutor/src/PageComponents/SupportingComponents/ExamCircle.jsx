@@ -7,7 +7,7 @@ export default function ScoreCircle({ examType, score }) {
 
   const size = 200
   const animationDuration = 2000;
-  const maxScore = examType === "full_sat" ? 1600: 800;
+  const maxScore = examType === "full_exam" ? 1600: 800;
 
   // Calculate percentage (0-100)
 //   const percentage = Math.min((score / maxScore) * 100, 100);
@@ -44,7 +44,7 @@ export default function ScoreCircle({ examType, score }) {
 
   // Get color based on score
   const getScoreColor = (currentScore, examType) => {
-    if (examType === "full_sat") {
+    if (examType === "full_exam") {
         if (currentScore >= 1400) return '#10B981'; // Green
         if (currentScore >= 1200) return '#F59E0B'; // Yellow
         if (currentScore >= 1000) return '#F97316'; // Orange

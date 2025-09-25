@@ -1,0 +1,50 @@
+.math_main_container {
+    height: 100vh;
+    width: 100%;
+}
+
+.math_idle_container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 3rem;
+}
+
+.math_idle_text h2 {
+    font-size: 2rem;
+    padding-bottom: 3rem;
+}
+
+.math_test_buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10rem;
+}
+
+.math_section_info h2{
+    text-align: center;
+}
+
+.math_timer_container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 1000;
+    align-items: flex-end;
+}
+
+.math_submit_button {
+    position: fixed;
+    padding: 8px 16px;
+    background-color: red;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    top: 130px;
+}
