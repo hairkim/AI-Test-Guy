@@ -13,6 +13,7 @@ import PracticeQuestions from './PageComponents/MainPages/PracticeQuestions.jsx'
 import QuestionsPage from './PageComponents/MainPages/QuestionsPage.jsx'
 import EnglishPage from './PageComponents/MainPages/EnglishPage.jsx'
 import ExamRouter from './PageComponents/MiscComponents/ExamRouter.jsx'
+import SchoolScroller from './PageComponents/SupportingComponents/SchoolScroller.jsx'
 import { AuthProvider } from './ClientStuff/AuthContext.jsx'
 // import PlaceholderPage from './PlaceholderPage';
 
@@ -34,6 +35,7 @@ const App = () => {
         <Route path="/practice-questions" element={<PracticeQuestions/> } />
         <Route path="/query" element={<QuestionsPage/> } />
         <Route path="/english" element={<EnglishPage/> } />
+        <Route path='/placeholder' element={<SchoolScroller/> } />
       </Routes>
       </AuthProvider>
     </Router>

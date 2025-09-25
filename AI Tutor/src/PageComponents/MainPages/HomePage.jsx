@@ -4,6 +4,7 @@ import TaskComponent from '../SupportingComponents/TaskComponent.jsx'
 import '../CSS/HomePage.css'
 import { useAuth } from '../../ClientStuff/AuthContext.jsx'
 import ScoreCircle from '../SupportingComponents/ExamCircle.jsx'
+import SchoolScroller from '../SupportingComponents/SchoolScroller.jsx'
 import { useProtectedNavigation } from '../../ClientStuff/UserProtectedNav.js'
 
 export default function HomePage() {
@@ -130,6 +131,7 @@ export default function HomePage() {
             {/* Bottom content is for previous exam scores */}
             <div className='bottom-content'>
                 {/* show schools Safety/Target/Reach */}
+                <SchoolScroller previousScore={recentExams?.total_score} />
             </div>
         </div>
     )

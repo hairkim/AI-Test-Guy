@@ -5,7 +5,7 @@ from sqlalchemy import func
 from typing import List, Optional, Any
 from datetime import datetime, timezone
 from app.database import get_db
-from app.models import SATQuestion, MockExam, MockExamQuestion, MockExamSection
+from app.models import SATQuestion, MockExam, MockExamQuestion, MockExamSection, CollegeSATScore
 from app.sat_route_helpers import (
     generate_section_questions,
     get_difficulty_distribution,
@@ -379,78 +379,47 @@ def get_section_module_questions_api(
         "section_type": section_type,
         "module": module_number,
         "total_questions": total_questions,
-        "questions": questions_to_response(questions, include_answers=False)
+        "questions": questions_to_response(questions, include_answers=True)
     }
     
-
-
-# @sat_router.get("/mock-exam/adaptive/{exam_type}")
-# def generate_adaptive_mock_exam(
-#     exam_type: str,
-#     user_performance_level: str = Query("medium", description="easy, medium, or hard based on user's typical performance"),
-#     db: Session = Depends(get_db)
-# ):
-#     """Generate an adaptive mock exam that adjusts difficulty based on user performance level"""
+@sat_router.get("/colleges/recommendations/{score}")
+def get_college_recommendations(
+    score: int,
+    safety_limit: int = Query(15, ge=5, le=50),
+    target_limit: int = Query(15, ge=5, le=50),
+    reach_limit: int = Query(15, ge=5, le=50),
+    db: Session = Depends(get_db)
+):
+    """Get college recommendations: safety, target, and reach schools"""
     
-#     # Adaptive difficulty distribution based on user's level
-#     if user_performance_level == "easy":
-#         # More easy questions for struggling students
-#         if exam_type == "math_only":
-#             difficulty_mix = {"Easy": 15, "Medium": 20, "Hard": 9}
-#         else:
-#             difficulty_mix = {"Easy": 18, "Medium": 25, "Hard": 11}
-#     elif user_performance_level == "hard":
-#         # More challenging distribution for advanced students  
-#         if exam_type == "math_only":
-#             difficulty_mix = {"Easy": 6, "Medium": 20, "Hard": 18}
-#         else:
-#             difficulty_mix = {"Easy": 8, "Medium": 25, "Hard": 21}
-#     else:
-#         # Standard distribution for average students
-#         difficulty_mix = get_difficulty_distribution(exam_type)
+    # Safety schools: score is above 75th percentile (user's score > school's max range)
+    safety_schools = db.query(CollegeSATScore).filter(
+        CollegeSATScore.sat_max < score - 30  # More realistic threshold
+    ).order_by(CollegeSATScore.sat_max.desc()).limit(safety_limit).all()
     
-#     all_questions = []
+    # Target schools: score is within the school's range
+    target_schools = db.query(CollegeSATScore).filter(
+        CollegeSATScore.sat_min <= score,
+        CollegeSATScore.sat_max >= score
+    ).order_by(CollegeSATScore.sat_min).limit(target_limit).all()
     
-#     # Generate questions based on exam type
-#     if exam_type in ["math_only", "full_sat"]:
-#         math_questions = generate_section_questions(db, "Math", difficulty_mix)
-#         all_questions.extend(math_questions)
+    # Reach schools: score is below 25th percentile but within reason
+    reach_schools = db.query(CollegeSATScore).filter(
+        CollegeSATScore.sat_min > score,
+        CollegeSATScore.sat_min <= score + 150  # Increased range for more options
+    ).order_by(CollegeSATScore.sat_min).limit(reach_limit).all()
     
-#     if exam_type in ["english_only", "full_sat"]:
-#         english_questions = generate_section_questions(db, "English", difficulty_mix)
-#         all_questions.extend(english_questions)
-    
-#     # Create mock exam record with adaptive config
-#     mock_exam = MockExam(
-#         exam_type=f"{exam_type}_adaptive",
-#         total_questions=len(all_questions),
-#         config={
-#             "difficulty_mix": difficulty_mix,
-#             "user_performance_level": user_performance_level,
-#             "adaptive": True
-#         }
-#     )
-#     db.add(mock_exam)
-#     db.flush()
-    
-#     # Create question associations
-#     for i, question in enumerate(all_questions):
-#         mock_exam_question = MockExamQuestion(
-#             mock_exam_id=mock_exam.id,
-#             sat_question_id=question.id,
-#             question_order=i + 1
-#         )
-#         db.add(mock_exam_question)
-    
-#     db.commit()
-    
-#     time_limits = {"math_only": 70, "english_only": 64, "full_sat": 134}
-    
-#     return MockExamResponse(
-#         exam_id=str(mock_exam.id),
-#         exam_type=exam_type,
-#         total_questions=len(all_questions),
-#         questions=questions_to_response(all_questions, include_answers=False),
-#         time_limit_minutes=time_limits.get(exam_type, 60)
-#     )
-    
+    return {
+        "user_score": score,
+        "total_colleges": len(safety_schools) + len(target_schools) + len(reach_schools),
+        "recommendations": {
+            "safety": [college.to_dict() for college in safety_schools],
+            "target": [college.to_dict() for college in target_schools],
+            "reach": [college.to_dict() for college in reach_schools]
+        },
+        "summary": {
+            "safety_count": len(safety_schools),
+            "target_count": len(target_schools),
+            "reach_count": len(reach_schools)
+        }
+    }
