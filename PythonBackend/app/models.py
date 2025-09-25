@@ -108,6 +108,7 @@ class UserTaskCompletion(Base):
         UniqueConstraint("user_id", "task_type_id", "completed_at", name="uq_user_task_completion"),
     )
 
+#not using this anymore
 class Exam(Base):
     __tablename__ = "exams"
     id = Column(Integer, primary_key=True)
@@ -117,6 +118,7 @@ class Exam(Base):
     sections = relationship("Section", back_populates="exam")
 
 
+#not using this anymore
 class Section(Base):
     __tablename__ = "sections"
     id = Column(Integer, primary_key=True)
@@ -127,6 +129,7 @@ class Section(Base):
     questions = relationship("Question", back_populates="section")
 
 
+#not using
 class Question(Base):
     __tablename__ = "questions"
     id = Column(Integer, primary_key=True)
@@ -139,7 +142,7 @@ class Question(Base):
     section = relationship("Section", back_populates="questions")
     solutions = relationship("Solution", back_populates="question")
 
-
+#not using
 class Solution(Base):
     __tablename__ = "solutions"
     id = Column(Integer, primary_key=True)
@@ -149,7 +152,7 @@ class Solution(Base):
 
     question = relationship("Question", back_populates="solutions")
 
-
+#not using
 class QuestionEmbedding(Base):
     __tablename__ = "question_embeddings"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -160,6 +163,7 @@ class QuestionEmbedding(Base):
 
     question = relationship("Question", backref="embedding")
 
+#not using
 class Passage(Base):
     __tablename__ = "passages"
 
@@ -189,7 +193,7 @@ class Passage(Base):
         Index("ix_passages_dataset_split", "dataset", "split"),
     )
 
-
+#not using
 class ReadingQuestion(Base):
     __tablename__ = "reading_questions"
 
@@ -223,7 +227,7 @@ class ReadingQuestion(Base):
         Index("ix_reading_questions_passage_qindex", "passage_id", "q_index"),
     )
 
-
+#not using
 class ReadingChoice(Base):
     __tablename__ = "reading_choices"
 
@@ -239,7 +243,7 @@ class ReadingChoice(Base):
         CheckConstraint("label IN ('A','B','C','D')", name="ck_choice_label_abcd"),
     )
 
-
+#not using
 class ReadingAnswer(Base):
     __tablename__ = "reading_answers"
 
@@ -253,7 +257,7 @@ class ReadingAnswer(Base):
         CheckConstraint("label IN ('A','B','C','D')", name="ck_answer_label_abcd"),
     )
 
-
+#not using
 class PassageSentence(Base):
     __tablename__ = "passage_sentences"
 
@@ -341,76 +345,6 @@ class SATQuestionEmbedding(Base):
     sat_question = relationship("SATQuestion", back_populates="sat_embeddings")
 
 
-class MockExam(Base):
-    """Mock exam instances for users"""
-    __tablename__ = "mock_exams"
-
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(String) # For when you add user accounts
-    exam_type = Column(String, nullable=False) # "full_sat", "math_only", "english_only"
-
-
-    # Module 1 results
-    module1_completed = Column(Boolean, default=False)
-    module1_correct = Column(Integer, default=0)
-    module1_total = Column(Integer, default=22) # 22 questions per module
-    module1_questions = Column(JSONB, default={})
-
-
-    # Module 2 results
-    module2_completed = Column(Boolean, default=False)
-    module2_correct = Column(Integer, default=0)
-    module2_total = Column(Integer, default=22)
-    module2_questions = Column(JSONB, default={})
-    module2_difficulty_assigned = Column(String, default="lower")
-
-
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("timezone('UTC', now())"))
-    started_at = Column(DateTime(timezone=True))
-    completed_at = Column(DateTime(timezone=True))
-
-
-    # Calculated fields
-    total_questions = Column(Integer)
-    correct_answers = Column(Integer)
-    score = Column(Integer) # Scaled score (200-800)
-    time_spent_minutes = Column(Integer)
-
-
-    # Exam configuration
-    config = Column(JSONB, default={})
-
-
-    # Relationships
-    questions = relationship("MockExamQuestion", back_populates="mock_exam", cascade="all, delete-orphan")
-
-
-    @property
-    def percentage_correct(self):
-        if not self.total_questions:
-            return 0
-        return (self.correct_answers / self.total_questions) * 100
-
-
-class MockExamQuestion(Base):
-    """Junction table linking mock exams to specific questions"""
-    __tablename__ = "mock_exam_questions"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    mock_exam_id = Column(UUID(as_uuid=True), ForeignKey("mock_exams.id", ondelete="CASCADE"))
-    sat_question_id = Column(String, ForeignKey("sat_questions.id", ondelete="CASCADE"))
-    
-    question_order = Column(Integer)  # Order within the exam
-    user_answer = Column(String(1))  # A, B, C, D, or null if not answered
-    is_correct = Column(Boolean)
-    time_spent_seconds = Column(Integer)
-    
-    # Relationships
-    mock_exam = relationship("MockExam", back_populates="questions")
-    sat_question = relationship("SATQuestion", back_populates="mock_exam_questions")
-
-
 class UserPerformance(Base):
     """Track user performance across different domains/difficulties"""
     __tablename__ = "user_performance"
@@ -441,4 +375,187 @@ class UserPerformance(Base):
         if not self.questions_attempted:
             return 0
         return (self.questions_correct / self.questions_attempted) * 100
+
+class MockExam(Base):
+    """Main mock exam record - can contain multiple sections"""
+    __tablename__ = "mock_exams"
     
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String)
+    exam_type = Column(String, nullable=False)  # "full_exam", "math_only", "english_only"
+    
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("timezone('UTC', now())"))
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    
+    # Overall exam stats (calculated from sections)
+    total_score = Column(Integer)  # Combined score for full SAT
+    time_spent_minutes = Column(Integer)
+    
+    # Exam configuration
+    config = Column(JSONB, default={})
+    
+    # Relationships
+    sections = relationship("MockExamSection", back_populates="mock_exam", cascade="all, delete-orphan")
+    
+    @property
+    def is_completed(self):
+        """Check if all sections are completed"""
+        return all(section.is_completed for section in self.sections)
+    
+    @property
+    def math_section(self):
+        """Get math section if it exists"""
+        return next((s for s in self.sections if s.section_type == "Math"), None)
+    
+    @property
+    def english_section(self):
+        """Get English section if it exists"""
+        return next((s for s in self.sections if s.section_type == "English"), None)
+
+
+class MockExamSection(Base):
+    """Individual section (Math or English) within a mock exam"""
+    __tablename__ = "mock_exam_sections"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    mock_exam_id = Column(UUID(as_uuid=True), ForeignKey("mock_exams.id", ondelete="CASCADE"))
+    section_type = Column(String, nullable=False)  # "Math" or "English"
+    
+    # Module 1 results
+    module1_completed = Column(Boolean, default=False)
+    module1_correct = Column(Integer, default=0)
+    module1_total = Column(Integer, default=22)  # Will be 22 for math, 27 for English
+    module1_questions = Column(JSONB, default=list)  # List of question IDs
+    
+    # Module 2 results
+    module2_completed = Column(Boolean, default=False)
+    module2_correct = Column(Integer, default=0)
+    module2_total = Column(Integer, default=22)  # Will be 22 for math, 27 for English
+    module2_questions = Column(JSONB, default=list)
+    module2_difficulty_assigned = Column(String)  # "higher" or "lower"
+
+    total = Column(Integer, default=0)
+    
+    # Section-specific timing
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    time_spent_minutes = Column(Integer)
+    
+    # Calculated fields
+    total_correct = Column(Integer, default=0)
+    section_score = Column(Integer)  # 200-800 for this section
+    
+    # Relationships
+    mock_exam = relationship("MockExam", back_populates="sections")
+    questions = relationship("MockExamQuestion", back_populates="section", cascade="all, delete-orphan")
+    
+    @property
+    def is_completed(self):
+        return self.module1_completed and self.module2_completed
+    
+    @property
+    def total_questions(self):
+        return self.module1_total + self.module2_total
+    
+    @property
+    def percentage_correct(self):
+        if self.total_questions == 0:
+            return 0
+        return (self.total_correct / self.total_questions) * 100
+
+
+
+class MockExamQuestion(Base):
+    """Junction table linking sections to specific questions"""
+    __tablename__ = "mock_exam_questions"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    section_id = Column(UUID(as_uuid=True), ForeignKey("mock_exam_sections.id", ondelete="CASCADE"))
+    sat_question_id = Column(String, ForeignKey("sat_questions.id", ondelete="CASCADE"))
+    
+    module_number = Column(Integer, nullable=False)  # 1 or 2
+    question_order = Column(Integer)  # Order within the module
+    user_answer = Column(String(1))  # A, B, C, D, or null
+    is_correct = Column(Boolean)
+    time_spent_seconds = Column(Integer)
+    
+    # Relationships
+    section = relationship("MockExamSection", back_populates="questions")
+    sat_question = relationship("SATQuestion", back_populates="mock_exam_questions")
+
+
+# Updated helper functions
+def get_section_question_counts(section_type: str) -> dict:
+    """Get the correct question counts for each section type"""
+    if section_type == "Math":
+        return {
+            "module1_total": 22,
+            "module2_total": 22,
+            "total": 44
+        }
+    elif section_type == "English":
+        return {
+            "module1_total": 27,
+            "module2_total": 27,
+            "total": 54
+        }
+    else:
+        raise ValueError(f"Unknown section type: {section_type}")
+    
+
+class CollegeSATScore(Base):
+    """
+    Model for storing college SAT score ranges
+    """
+    __tablename__ = "college_sat_scores"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    college_name = Column(String, nullable=False, unique=True)
+    sat_range = Column(String, nullable=False)  # e.g., "1200-1400"
+    
+    # Parsed score ranges for easier querying
+    sat_min = Column(Integer, nullable=True)  # 25th percentile
+    sat_max = Column(Integer, nullable=True)  # 75th percentile
+    
+    
+    # Database indexes for performance
+    __table_args__ = (
+        Index("ix_college_sat_scores_college_name", "college_name"),
+        Index("ix_college_sat_scores_sat_min", "sat_min"),
+        Index("ix_college_sat_scores_sat_max", "sat_max"),
+        Index("ix_college_sat_scores_range", "sat_min", "sat_max"),  # Composite index for range queries
+    )
+
+    def to_dict(self):
+        """Convert to dict for API responses"""
+        return {
+            "id": self.id,
+            "college_name": self.college_name,
+            "sat_range": self.sat_range,
+            "sat_min": self.sat_min,
+            "sat_max": self.sat_max,
+        }
+
+    @classmethod
+    def get_colleges_for_score(cls, db_session, score: int):
+        """
+        Get colleges where the given score falls within their SAT range
+        """
+        return db_session.query(cls).filter(
+            cls.sat_min <= score,
+            cls.sat_max >= score
+        ).all()
+
+    @classmethod
+    def get_colleges_by_score_range(cls, db_session, min_score: int, max_score: int):
+        """
+        Get colleges where SAT ranges overlap with the given score range
+        """
+        return db_session.query(cls).filter(
+            cls.sat_min <= max_score,
+            cls.sat_max >= min_score
+        ).all()
+
+    def __repr__(self):
+        return f"<CollegeSATScore(college='{self.college_name}', range='{self.sat_range}')>"

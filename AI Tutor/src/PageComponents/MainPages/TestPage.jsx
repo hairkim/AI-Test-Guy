@@ -34,38 +34,62 @@ export default function TestPage() {
     const [percentage, setPercentage] = useState(null)
     const [timer, setTimer] = useState(0);
     const [timerWarning, setTimerWarning] = useState('')
+    const [currentSectionType, setCurrentSectionType] = useState(null)
+    const [completedSections, setCompletedSections] = useState([])
+    const [examSections, setExamSections] = useState([])
 
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
     const startTest = async () => {
         setIsLoading(true)
         setUserAnswer({})
+        if (!user?.id) {
+            console.error("No user data found")
+            setTestState("error")
+            setIsLoading(false)
+            return
+        } else {
+            console.log("User data found: " + user.id)
+        }
+    
         try {
             const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/generate`, {
                 method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                exam_type: examType,
-                user_id: user.id,
-                started_at: new Date().toISOString()
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    exam_type: examType,
+                    user_id: user.id,
+                    started_at: new Date().toISOString()
+                })
             })
-        })
-        if (response.ok) {
-            const data = await response.json()
-            if (examType === 'math_only') {
-                setTimer(data.math_module_time_limit)
-            } else if (examType === 'english_only') {
-                setTimer(data.eng_module_time_limit)
+            if (response.ok) {
+                const data = await response.json()
+                
+                // Set timer based on current section
+                if (data.section_type === 'Math') {
+                    setTimer(data.math_module_time_limit)
+                } else if (data.section_type === 'English') {
+                    setTimer(data.eng_module_time_limit)
+                }
+                
+                setQuestions(data.questions)
+                setExamId(data.exam_id)
+                setModule(1)
+                setCurrentIndex(0)
+                setCurrentSectionType(data.section_type) // Track current section
+                
+                // For full exam, determine section order
+                if (examType === 'full_exam') {
+                    setExamSections(['Math', 'English']) // You might get this from the API response
+                } else {
+                    setExamSections([data.section_type])
+                }
+                
+                console.log("fetching worked, showing some questions: " + data.questions[0].question_text)
+                setTestState("active")
             }
-            setQuestions(data.questions)
-            setExamId(data.exam_id)
-            setModule(1)
-            setCurrentIndex(0)
-            console.log("fetching worked, showing some questions: " + data.questions[0].question_text)
-            setTestState("active")
-        }
         } catch (error) {
             console.error("Error loading questions:", error)
             setTestState("error")
@@ -110,8 +134,8 @@ export default function TestPage() {
     }
 
     const submitTest = async() => {
-        if (!examId) {
-            console.error("No exam ID found")
+        if (!examId || !currentSectionType) {
+            console.error("No exam ID or section type found")
             return
         }
         console.log("submitting test")
@@ -121,7 +145,7 @@ export default function TestPage() {
             setTestState("loading_results")
         }
         setIsLoading(true)
-
+    
         const requestBody = {
             exam_id: examId,
             answers: userAnswer,
@@ -134,41 +158,83 @@ export default function TestPage() {
         }
         
         try {
-            const response = await fetch(`${BACKEND_URL}/api/sat/submit_test/${module}`, {
+            // Use currentSectionType in the URL
+            const response = await fetch(`${BACKEND_URL}/api/sat/submit_test/${currentSectionType}/${module}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(requestBody)
             })
-
+    
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
+    
             const data = await response.json()
             console.log("Submit response:", data)
-
+    
             if (module === 1) {
                 // Module 1 completed - load module 2
-                setQuestions(data.module2_questions) // Load module 2 questions
+                setQuestions(data.module2_questions)
                 setModule(2)
                 setCurrentIndex(0)
-                setUserAnswer({}) // Reset answers for module 2
+                setUserAnswer({})
                 setTestState("module2_loaded")
             } else {
-                // Module 2 completed - show final results
-                setScore(data.score)
-                setPercentage(data.percentage)
-                setTestState("completed")
+                // Module 2 completed - check if there are more sections
+                const currentSectionIndex = examSections.indexOf(currentSectionType)
+                const hasMoreSections = currentSectionIndex < examSections.length - 1
+                
+                if (hasMoreSections && examType === 'full_exam') {
+                    // Move to next section
+                    const nextSectionType = examSections[currentSectionIndex + 1]
+                    setCompletedSections([...completedSections, currentSectionType])
+                    setCurrentSectionType(nextSectionType)
+                    setModule(1) // Reset to module 1 for new section
+                    setUserAnswer({})
+                    
+                    // Load next section's questions (you might need a new API call here)
+                    await loadNextSection(nextSectionType)
+                } else {
+                    // All sections completed - show final results
+                    setScore(data.section_score || data.total_exam_score)
+                    setPercentage(data.percentage)
+                    setTestState("completed")
+                }
             }
-
+    
         } catch (error) {
             console.error("Error submitting test:", error)
             setIsLoading(false)
             setTestState("error")
         } finally {
             setIsLoading(false)
+        }
+    }
+
+    const loadNextSection = async (sectionType) => {
+        try {
+            // You might need a new API endpoint to get the next section's module 1 questions
+            const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/${examId}/section/${sectionType}/module/1`)
+            
+            if (response.ok) {
+                const data = await response.json()
+                setQuestions(data.questions)
+                
+                // Update timer for new section
+                if (sectionType === 'Math') {
+                    setTimer(35) // Math module time limit
+                } else if (sectionType === 'English') {
+                    setTimer(32) // English module time limit
+                }
+                
+                setCurrentIndex(0)
+                setTestState("active")
+            }
+        } catch (error) {
+            console.error("Error loading next section:", error)
+            setTestState("error")
         }
     }
 
@@ -233,13 +299,25 @@ export default function TestPage() {
             )}
             {(testState === 'active' || testState === 'module2_active') && (
                 <div className="test_page">
-                    <SatQuestion key={questions[currentIndex].id} question={questions[currentIndex]} index={currentIndex + 1} selectedAnswer={userAnswer[questions[currentIndex].id]} handleAnswerSelect={(questionId, answer) => handleAnswerSelect(questionId, answer)} />
+                    <div className="section-info">
+                        <h2>Section: {currentSectionType} - Module {module}</h2>
+                        {examType === 'full_exam' && (
+                            <p>Progress: {completedSections.length + 1} of {examSections.length} sections</p>
+                        )}
+                    </div>
+                    <SatQuestion 
+                        key={questions[currentIndex].id} 
+                        question={questions[currentIndex]} 
+                        index={currentIndex + 1} 
+                        selectedAnswer={userAnswer[questions[currentIndex].id]} 
+                        handleAnswerSelect={(questionId, answer) => handleAnswerSelect(questionId, answer)} 
+                    />
                     <div className="button_container">
                         <button onClick={() => selectPreviousQuestion()}>Previous</button>
                         <button onClick={() => selectNextQuestion()}>Next</button>
                     </div>
                     <div className='submit_container'>
-                        <button onClick={submitTest}>Submit</button>
+                        <button onClick={submitTest}>Submit {currentSectionType} Module {module}</button>
                     </div>   
                 </div>
             )}
@@ -257,8 +335,13 @@ export default function TestPage() {
                 </div>
             )}
             {(testState === 'module2_loaded' || testState === 'module2_loading') && (
-                <div className="loading_page">
-                    <h1>You have reached the end of Module 1</h1>
+                <div className="math_loading_page">
+                    <div className='test-info-header'>
+                        <h1>You have reached the end of Module 1</h1>
+                    </div>
+                    <p>Module 2 will begin loading in a moment</p>
+                    <p>Module will be based on your previous scoring</p>
+                    <p>Good luck!</p>
                     <button onClick={() => setTestState('module2_active')} disabled={isLoading}>{isLoading ? 'Loading Module 2' : 'Start Module 2'}</button>
                 </div>
             )}

@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
-import '../CSS/EnglishTestPage.css'
+import '../CSS/MathTestPage.css'
 import { useAuth } from '../../ClientStuff/AuthContext.jsx';
 import { useParams } from 'react-router-dom'
 import SatQuestion from '../SupportingComponents/SatQuestion.jsx'
 import ExamTimer from '../SupportingComponents/ExamTimer.jsx'
 
-export default function EnglishTestPage() {
+export default function MathTestPage() {
     const { examType } = useParams()
     const { user, session } = useAuth();
     const [questions, setQuestions] = useState([])
@@ -46,7 +46,7 @@ export default function EnglishTestPage() {
             if (response.ok) {
                 const data = await response.json()
                 
-                setTimer(data.eng_module_time_limit)
+                setTimer(data.math_module_time_limit)
                 // setTimer(6)
                 console.log(data.questions)
                 setQuestions(data.questions)
@@ -61,7 +61,7 @@ export default function EnglishTestPage() {
             setTestState("error")
         }
         finally {
-            setTestState("english1")
+            setTestState("math1")
             setIsLoading(false)
         }
     }
@@ -124,7 +124,7 @@ export default function EnglishTestPage() {
         }
         
         try {
-            const response = await fetch(`${BACKEND_URL}/api/sat/submit_test/${'English'}/${module}`, {
+            const response = await fetch(`${BACKEND_URL}/api/sat/submit_test/${'Math'}/${module}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -163,31 +163,31 @@ export default function EnglishTestPage() {
     }
     
     return (
-        <div className='english_main_container'>
+        <div className='math_main_container'>
             {/* idle test state (beginning) */}
             {testState === 'idle' && (
-                <div className='english_idle_container'>
-                    <div className='english_idle_text'>
-                        <h2>You are about to take a practice English only exam</h2>
-                        <p>The test includes 2 modules, each with 27 questions</p>
+                <div className='math_idle_container'>
+                    <div className='math_idle_text'>
+                        <h2>You are about to take a practice math only exam</h2>
+                        <p>The test includes 2 modules, each with 22 questions</p>
                         <p>You will be given module 2 questions based on previous scoring</p>
                         <p>There is no penalty for wrong answers</p>
                         <p>Good luck!</p>
                     </div>
-                    <div className='english_idle_button'>
+                    <div className='math_idle_button'>
                         <button onClick={startTest} disabled={isLoading}>Start Test</button>
                     </div>
                 </div>
             )}
-            {/* english1 test state (during the test) */}
-            {((testState === 'english1' || testState === 'english2') && questions.length > 0) && (
-                <div className='english_test_container'>
-                    <div className="english_section_info">
-                        <h2>Section: English - Module {module}</h2>
-                        <div className='english_timer_container'>
+            {/* math/english test states */}
+            {((testState === 'math1' || testState === 'math2' || testState === 'english1' || testState === 'english2') && questions.length > 0) && (
+                <div className='full_test_container'>
+                    <div className="full_section_info">
+                        <h2>Section: Math - Module {module}</h2>
+                        <div className='full_timer_container'>
                             <ExamTimer 
                                 timeLimit={timer}
-                                isActive={testState === 'english1' || testState === 'english2'}
+                                isActive={testState === 'math1' || testState === 'math2' || testState === 'english1' || testState === 'english2'}
                                 onTimeUp={handleTimeUp}
                                 module={module}
                                 onWarning={() => handleTimeWarning("Time is running out!")}
@@ -209,7 +209,7 @@ export default function EnglishTestPage() {
                                     {timerWarning}
                                 </div>
                             )}
-                            <button className='english_submit_button' onClick={submitTest} disabled={questions.length !== Object.keys(userAnswer).length}>Submit Module</button>
+                            <button className='full_submit_button' onClick={submitTest} disabled={questions.length !== Object.keys(userAnswer).length}>Submit Module</button>
                         </div>
                     </div>
                     <SatQuestion
@@ -218,20 +218,20 @@ export default function EnglishTestPage() {
                         selectedAnswer={userAnswer[questions[currentIndex].id]}
                         handleAnswerSelect={(questionId, answer) => handleAnswerSelect(questionId, answer)}
                     />
-                    <div className='english_test_buttons'>
+                    <div className='full_test_buttons'>
                         <button onClick={() => selectPreviousQuestion()}>Previous</button>
                         <button onClick={() => selectNextQuestion()}>Next</button>
                     </div>
                 </div>
             )}
-            {testState === 'english1_done' && (
-                <div className='english_results_container'>
+            {testState === 'math1_done' && (
+                <div className='math_results_container'>
                     <h2>Module 1 Completed</h2>
-                    <button onClick={() => setTestState('english2')} disabled={isLoading}>Start Module 2</button>
+                    <button onClick={() => setTestState('math2')} disabled={isLoading}>Start Module 2</button>
                 </div>
             )}
             {testState === 'completed' && (
-                <div className='english_results_container'>
+                <div className='math_results_container'>
                     <h2>Results</h2>
                     <p>Score: {score}</p>
                     <p>Percentage: {percentage}</p>

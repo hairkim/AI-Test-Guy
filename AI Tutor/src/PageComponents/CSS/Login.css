@@ -2,7 +2,7 @@
     width: 60%;
     display: flex;
     flex-direction: column;
-    justify-content: space-evenly;
+    justify-content: center;
     height: 70vh;
     align-items: center;
 }
@@ -16,8 +16,11 @@
 }
 
 .login_page_container form {
+    display: flex;
+    flex-direction: column;
     width: 100%;
     align-items: center;
+    gap: 1rem;
 }
 
 .login_page_container form button {

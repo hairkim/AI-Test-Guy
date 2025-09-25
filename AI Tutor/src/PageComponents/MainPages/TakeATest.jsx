@@ -12,7 +12,7 @@ export default function TakeATest() {
             <div className='test-buttons'>
                 <button onClick={() => navigate('/test/math_only')}>Take a Math Test</button>
                 <button onClick={() => navigate('/test/english_only')}>Take an English Test</button>
-                <button onClick={() => navigate('/full_exam')}>Take a Full Exam</button>
+                <button onClick={() => navigate('/test/full_exam')}>Take a Full Exam</button>
             </div>
         </div>
     )

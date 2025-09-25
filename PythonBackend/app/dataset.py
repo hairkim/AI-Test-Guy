@@ -1,5 +1,5 @@
-from app.database import SessionLocal, Base, engine
-from app.models import Question, Solution, Exam, Section, QuestionEmbedding, SATQuestion, SATQuestionEmbedding
+from app.database import SessionLocal, Base, engine, get_db
+from app.models import Question, Solution, Exam, Section, QuestionEmbedding, SATQuestion, SATQuestionEmbedding, CollegeSATScore
 from app.embeddingModels import MathBERTEmbeddings, get_mpnet_embeddings
 from app.chain import get_vectorstore
 from openai import OpenAI
@@ -8,6 +8,7 @@ from datasets import load_dataset
 import torch
 from transformers import AutoTokenizer, AutoModel
 import pandas as pd
+import re
 
 # MODEL_ID = "tbs17/MathBERT-custom"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -15,7 +16,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 #for embeddings
 # dataset = load_dataset("ndavidson/sat-math-chain-of-thought") dataset for initial embeddings
-csv_path = "sat_english_clean_passages.csv"
+csv_path = "sat_scores.csv"
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 db = SessionLocal()
 
@@ -321,6 +322,139 @@ def setup_complete_database():
     vectorstore = get_vectorstore("sat_questions")
     
     return vectorstore
+
+def parse_sat_range(sat_range_str):
+    """
+    Parse SAT range string like "1200-1400" into min and max values
+    
+    Args:
+        sat_range_str: String like "1200-1400", "1200 - 1400", or other formats
+    
+    Returns:
+        tuple: (min_score, max_score) or (None, None) if parsing fails
+    """
+    if not sat_range_str:
+        return None, None
+    
+    # Clean the string
+    cleaned = str(sat_range_str).strip()
+    
+    # Try different patterns for SAT score ranges
+    patterns = [
+        r'(\d{3,4})\s*-\s*(\d{3,4})',  # "1200-1400" or "1200 - 1400"
+        r'(\d{3,4})\s*to\s*(\d{3,4})',  # "1200 to 1400"
+        r'(\d{3,4})\s*/\s*(\d{3,4})',   # "1200/1400"
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, cleaned, re.IGNORECASE)
+        if match:
+            try:
+                min_score = int(match.group(1))
+                max_score = int(match.group(2))
+                
+                # Validate SAT score ranges (200-800 per section, 400-1600 total)
+                if 400 <= min_score <= 1600 and 400 <= max_score <= 1600 and min_score <= max_score:
+                    return min_score, max_score
+            except ValueError:
+                continue
+    
+    print(f"Warning: Could not parse SAT range: '{sat_range_str}'")
+    return None, None
+
+def load_sat_scores_csv(csv_file_path: str):
+    """
+    Load SAT scores from CSV file into the database
+    
+    Args:
+        csv_file_path: Path to the CSV file
+    """
+    try:
+        # Read the CSV file
+        print(f"Reading CSV file: {csv_file_path}")
+        df = pd.read_csv(csv_file_path)
+        
+        print(f"Loaded {len(df)} rows from CSV")
+        print("Columns:", df.columns.tolist())
+        
+        # Show first few rows for verification
+        print("\nFirst 3 rows:")
+        print(df.head(3))
+        
+        # Create database tables if they don't exist
+        Base.metadata.create_all(bind=engine)
+        
+        # Get database session
+        db = next(get_db())
+        
+        successful_inserts = 0
+        failed_inserts = 0
+        
+        for index, row in df.iterrows():
+            try:
+                college_name = str(row['College']).strip()
+                sat_range_str = str(row['SAT 25-75 Percentile']).strip()
+                
+                # Skip empty rows
+                if not college_name or college_name.lower() in ['nan', '']:
+                    print(f"Skipping row {index + 1}: Empty college name")
+                    failed_inserts += 1
+                    continue
+                
+                # Parse SAT range
+                sat_min, sat_max = parse_sat_range(sat_range_str)
+                
+                # Check if college already exists
+                existing = db.query(CollegeSATScore).filter(
+                    CollegeSATScore.college_name == college_name
+                ).first()
+                
+                if existing:
+                    print(f"Updating existing record for: {college_name}")
+                    existing.sat_range = sat_range_str
+                    existing.sat_min = sat_min
+                    existing.sat_max = sat_max
+                else:
+                    # Create new record
+                    college_score = CollegeSATScore(
+                        college_name=college_name,
+                        sat_range=sat_range_str,
+                        sat_min=sat_min,
+                        sat_max=sat_max,
+                    )
+                    db.add(college_score)
+                
+                successful_inserts += 1
+                
+            except Exception as e:
+                print(f"Error processing row {index + 1}: {e}")
+                print(f"Row data: {row.to_dict()}")
+                failed_inserts += 1
+                continue
+        
+        # Commit all changes
+        db.commit()
+        
+        print(f"\n✅ Data loading completed!")
+        print(f"Successfully processed: {successful_inserts} records")
+        print(f"Failed to process: {failed_inserts} records")
+        print(f"Total records in database: {db.query(CollegeSATScore).count()}")
+        
+        # Show some sample data
+        print("\nSample records from database:")
+        samples = db.query(CollegeSATScore).limit(5).all()
+        for sample in samples:
+            print(f"  {sample.college_name}: {sample.sat_range} (min: {sample.sat_min}, max: {sample.sat_max})")
+        
+    except Exception as e:
+        print(f"❌ Error loading CSV: {e}")
+        if 'db' in locals():
+            db.rollback()
+    finally:
+        if 'db' in locals():
+            db.close()
+
+# load_sat_scores_csv(csv_path)
 
 
 setup_complete_database()

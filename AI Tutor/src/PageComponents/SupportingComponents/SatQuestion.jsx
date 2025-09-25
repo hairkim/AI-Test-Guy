@@ -50,9 +50,9 @@ export default function SatQuestion({ question, index, selectedAnswer, handleAns
                 ))}
             </div>
             {question.correct_answer && <p className="correct-answer">Correct Answer: {question.correct_answer}</p>}
-            {selectedAnswer && (
+            {/* {selectedAnswer && (
                 <p className="selected-answer">Selected Answer: {selectedAnswer}</p>
-            )}
+            )} */}
         </div>
     )
 }

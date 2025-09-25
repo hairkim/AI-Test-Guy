@@ -1,6 +1,6 @@
 from sqlalchemy import and_, func
 from typing import List, Dict, Optional
-from app.models import SATQuestion, MockExam, MockExamQuestion
+from app.models import SATQuestion, MockExam, MockExamQuestion, MockExamSection
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import Dict
@@ -26,9 +26,12 @@ class MockExamRequest(BaseModel):
     user_id: Optional[str] = None
     started_at: Optional[str] = None
 
+
 class MockExamResponse(BaseModel):
     exam_id: str
     exam_type: str
+    sections: Optional[List[str]] = None
+    section_type: Optional[str] = None  # Which section we're currently on
     module: int
     module_questions: int
     total_questions: int
@@ -76,18 +79,16 @@ def generate_section_questions(db: Session, section: str, difficulty_mix: Dict[s
     return questions
 
 # Utility functions
-def get_difficulty_distribution(exam_type: str, custom_mix: Optional[Dict[str, int]] = None) -> Dict[str, int]:
+def get_difficulty_distribution(section_type: str, module: int = 1, custom_mix: Optional[Dict[str, int]] = None) -> Dict[str, int]:
     """Get realistic difficulty distribution for different exam types"""
     
     if custom_mix:
         return custom_mix
     
-    if exam_type == "math_only":
+    if section_type == "Math":
         return {"Easy": 7, "Medium": 10, "Hard": 5}  # 22 -> 7, 10, 5
-    elif exam_type == "english_only":
+    elif section_type == "English":
         return {"Easy": 6, "Medium": 16, "Hard": 5}  # Total: 27 (real SAT english) module 1 should have 27 questions
-    elif exam_type == "full_sat":
-        return {"Easy": 27, "Medium": 60, "Hard": 23}  # Total: 110 (full SAT) i dont think this will ever get used
     else:
         return {"Easy": 5, "Medium": 10, "Hard": 5}    # Default practice
 
@@ -174,56 +175,111 @@ def get_module_questions(db: Session, exam: MockExam, module_number: int) -> Lis
     return exam_questions
 
 
-def generate_module2_questions(db: Session, exam: MockExam, difficulty_level: str) -> List[SATQuestion]:
-    """Generate module 2 questions based on module 1 performance"""
+def generate_module2_questions(db: Session, section: MockExamSection, difficulty_level: str) -> List[SATQuestion]:
+    """Generate module 2 questions based on module 1 performance for a specific section"""
+    
+    section_type = section.section_type
     
     if difficulty_level == "higher":
-        # More challenging distribution
-        if exam.exam_type == "math_only":
-            difficulty_mix = {"Easy": 3, "Medium": 8, "Hard": 11} #total 22 questions
-        elif exam.exam_type == "english_only": 
-            difficulty_mix = {"Easy": 5, "Medium": 10, "Hard": 12} #total 27 questions
-        else:  # full_sat - split between math and english
-            math_mix = {"Easy": 3, "Medium": 8, "Hard": 11}
-            english_mix = {"Easy": 5, "Medium": 10, "Hard": 12}
+        if section_type == "Math":
+            difficulty_mix = {"Easy": 3, "Medium": 8, "Hard": 11}  # 22 total
+        else:  # English
+            difficulty_mix = {"Easy": 5, "Medium": 10, "Hard": 12}  # 27 total
     else:  # lower difficulty
-        if exam.exam_type == "math_only":
-            difficulty_mix = {"Easy": 11, "Medium": 8, "Hard": 3} #total 22 questions
-        elif exam.exam_type == "english_only":
-            difficulty_mix = {"Easy": 16, "Medium": 9, "Hard": 2} #total 27 questions
-        else:  # full_sat
-            math_mix = {"Easy": 11, "Medium": 8, "Hard": 3}
-            english_mix = {"Easy": 16, "Medium": 9, "Hard": 2}
+        if section_type == "Math":
+            difficulty_mix = {"Easy": 11, "Medium": 8, "Hard": 3}  # 22 total
+        else:  # English
+            difficulty_mix = {"Easy": 16, "Medium": 9, "Hard": 2}  # 27 total
     
-    questions = []
-    
-    if exam.exam_type in ["math_only", "full_sat"]:
-        if exam.exam_type == "full_sat":
-            math_questions = generate_section_questions(db, "Math", math_mix)
-        else:
-            math_questions = generate_section_questions(db, "Math", difficulty_mix)
-        questions.extend(math_questions)
-    
-    if exam.exam_type in ["english_only", "full_sat"]:
-        if exam.exam_type == "full_sat":
-            english_questions = generate_section_questions(db, "English", english_mix)
-        else:
-            english_questions = generate_section_questions(db, "English", difficulty_mix)
-        questions.extend(english_questions)
-    
-    return questions
+    return generate_section_questions(db, section_type, difficulty_mix)
 
 
-def score_exam(exam: MockExam) -> (int, int):
-    """Score a mock exam based on module 1 and module 2 performance"""
-    module1_score = exam.module1_correct
-    module2_score = exam.module2_correct
+# def score_exam(exam: MockExam) -> (int, int):
+#     """Score a mock exam based on module 1 and module 2 performance"""
+#     module1_score = exam.module1_correct
+#     module2_score = exam.module2_correct
     
-    combinedScore = module1_score + module2_score
+#     combinedScore = module1_score + module2_score
 
-    if(exam.module2_difficulty_assigned == "lower"):
-        score = round_to_nearest_10( 200 + (combinedScore/44) * (690 - 200) )
+#     if(exam.module2_difficulty_assigned == "lower"):
+#         score = round_to_nearest_10( 200 + (combinedScore/44) * (690 - 200) )
+#     else:
+#         score = round_to_nearest_10( 300 + (combinedScore/44) * (800 - 300) )
+    
+#     return score, combinedScore
+
+
+def get_section_question_counts(section_type: str) -> dict:
+    """Get the correct question counts for each section type"""
+    if section_type == "Math":
+        return {
+            "module1_total": 22,
+            "module2_total": 22,
+            "total": 44
+        }
+    elif section_type == "English":
+        return {
+            "module1_total": 27,
+            "module2_total": 27,
+            "total": 54
+        }
     else:
-        score = round_to_nearest_10( 300 + (combinedScore/44) * (800 - 300) )
+        raise ValueError(f"Unknown section type: {section_type}")
+
+
+
+def create_mock_exam_sections(db: Session, exam: MockExam, exam_type: str) -> List[MockExamSection]:
+    """Create the appropriate sections based on exam type"""
+    sections = []
+
+    if exam_type in ["english_only", "full_exam"]:
+        english_section = MockExamSection(
+            mock_exam_id=exam.id,
+            section_type="English",
+            **get_section_question_counts("English")
+        )
+        sections.append(english_section)
     
-    return score, combinedScore
+    if exam_type in ["math_only", "full_exam"]:
+        math_section = MockExamSection(
+            mock_exam_id=exam.id,
+            section_type="Math",
+            **get_section_question_counts("Math")
+        )
+        sections.append(math_section)
+    
+    for section in sections:
+        db.add(section)
+    
+    return sections
+
+def get_section_module_questions(db: Session, section: MockExamSection, module_number: int) -> List[MockExamQuestion]:
+    """Get MockExamQuestion objects for a specific module of a section"""
+    
+    return db.query(MockExamQuestion)\
+        .filter(
+            MockExamQuestion.section_id == section.id,
+            MockExamQuestion.module_number == module_number
+        )\
+        .order_by(MockExamQuestion.question_order)\
+        .all()
+
+def calculate_section_score(section: MockExamSection) -> int:
+    """Calculate the scaled score (200-800) for a section"""
+    
+    total_correct = section.total_correct
+    section_type = section.section_type
+    difficulty_level = section.module2_difficulty_assigned
+    
+    # Different scoring based on section type
+    if section_type == "Math":
+        total_possible = 44
+    else:  # English
+        total_possible = 54
+    
+    if difficulty_level == "lower":
+        score = round_to_nearest_10(200 + (total_correct / total_possible) * (690 - 200))
+    else:
+        score = round_to_nearest_10(300 + (total_correct / total_possible) * (800 - 300))
+    
+    return score
