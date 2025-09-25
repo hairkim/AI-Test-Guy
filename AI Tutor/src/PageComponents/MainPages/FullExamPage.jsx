@@ -4,6 +4,7 @@ import { useAuth } from '../../ClientStuff/AuthContext.jsx';
 import SatQuestion from '../SupportingComponents/SatQuestion.jsx'
 import ExamTimer from '../SupportingComponents/ExamTimer.jsx'
 import BreakTimer from '../SupportingComponents/BreakTimer.jsx'
+import IntermissionTimer from '../SupportingComponents/IntermissionTimer.jsx'
 import '../CSS/FullExamPage.css'
 
 export default function FullExamPage() {
@@ -27,6 +28,7 @@ export default function FullExamPage() {
     const [sections, setSections] = useState([])
     const [sectionIndex, setSectionIndex] = useState(0)
     const [completedSections, setCompletedSections] = useState([])
+    const [intermissionTimer, setIntermissionTimer] = useState(1 * 60)
 
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
@@ -143,6 +145,13 @@ export default function FullExamPage() {
         // Add end time only for module 2
         if (module === 2) {
             requestBody.time_ended = new Date().toISOString();
+        } else if (module === 1) {
+            // Set appropriate state for module 2
+            if (currentSectionType === 'English') {
+                setTestState("english1_done")
+            } else if (currentSectionType === 'Math') {
+                setTestState("math1_done")
+            }
         }
         
         try {
@@ -169,13 +178,6 @@ export default function FullExamPage() {
                 setModule(2)
                 setCurrentIndex(0)
                 setUserAnswer({})
-                
-                // Set appropriate state for module 2
-                if (currentSectionType === 'English') {
-                    setTestState("english2")
-                } else if (currentSectionType === 'Math') {
-                    setTestState("math2")
-                }
                 
             } else if (module === 2) {
                 // Module 2 completed - check if there are more sections
@@ -273,6 +275,15 @@ export default function FullExamPage() {
         startMathSection()
     }
 
+    const handleIntermissionEnd = () => {
+        setIntermissionTimer(1 * 60) // Reset for next time
+        if(currentSectionType === 'Math') {
+            setTestState("math2")
+        } else if (currentSectionType === 'English') {
+            setTestState("english2")
+        }
+    }
+
     useEffect(() => {
         if (testState === 'break' && breakTimer > 0) {
             const timer = setInterval(() => {
@@ -288,6 +299,22 @@ export default function FullExamPage() {
             return () => clearInterval(timer)
         }
     }, [testState, breakTimer])
+
+    useEffect(() => {
+        if ((testState === 'english1_done' || testState === 'math1_done') && intermissionTimer > 0) {
+            const timer = setInterval(() => {
+                setIntermissionTimer(prev => {
+                    if (prev <= 1) {
+                        handleIntermissionEnd()
+                        return 0
+                    }
+                    return prev - 1
+                })
+            }, 1000)
+    
+            return () => clearInterval(timer)
+        }
+    }, [testState, intermissionTimer])
 
 
     return (
@@ -367,6 +394,15 @@ export default function FullExamPage() {
                     <p>Score: {score}</p>
                     <p>Percentage: {percentage}</p>
                     <button onClick={() => navigate('/')}>Back to Dashboard</button>
+                </div>
+            )}
+            {(testState === 'english1_done' || testState === 'math1_done') && (
+                <div className='full_test_intermission_container'>
+                    <IntermissionTimer
+                        timeRemaining={intermissionTimer}
+                        onIntermissionEnd={handleIntermissionEnd}
+                        currentSectionType={currentSectionType}
+                    />
                 </div>
             )}
         </div>

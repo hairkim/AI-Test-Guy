@@ -126,7 +126,7 @@ def generate_mock_exam(
         module=1,
         module_questions=starting_section.module1_total,
         total_questions=total_questions,
-        questions=questions_to_response(starting_section_questions, include_answers=False),
+        questions=questions_to_response(starting_section_questions, include_answers=True),
         eng_module_time_limit=32,
         math_module_time_limit=35,
         break_time_limit=10
