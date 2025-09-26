@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import router
 from app.sat_routes import sat_router
+from app.practice_tutor_routes import practice_tutor_router
 from dotenv import load_dotenv
 import os
 from app.auth import get_current_user
@@ -24,6 +25,7 @@ app.add_middleware(
 
 app.include_router(router)
 app.include_router(sat_router)
+app.include_router(practice_tutor_router)
 
 @app.get("/protected")
 def protected_route(user = Depends(get_current_user)):

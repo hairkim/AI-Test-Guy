@@ -7,6 +7,8 @@ import 'katex/dist/katex.min.css'
 import SubjectToggle from '../SupportingComponents/SubjectToggle.jsx';
 import StreamingMessage from '../MiscComponents/streaming';
 
+//PAGE FOR MATH AI TUTOR GUY
+
 export default function QuestionsPage() {
     const [question, setQuestion] = useState("");
     const [error, setError] = useState("");

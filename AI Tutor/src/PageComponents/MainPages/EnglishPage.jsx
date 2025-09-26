@@ -5,6 +5,8 @@ import 'katex/dist/katex.min.css'
 import SubjectToggle from '../SupportingComponents/SubjectToggle.jsx';
 import StreamingMessage from '../MiscComponents/streaming';
 
+//PAGE FOR ENGLISH AI TUTOR GUY
+
 export default function EnglishPage() {
     const [question, setQuestion] = useState("");
     const [passage, setPassage] = useState("");
