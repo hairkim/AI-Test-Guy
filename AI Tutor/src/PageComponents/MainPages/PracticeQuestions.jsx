@@ -6,7 +6,9 @@ import '../CSS/PracticeQuestions.css'
 import ReactMarkdown from 'react-markdown'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
+import StreamingMessage from '../MiscComponents/streaming.jsx'
 import 'katex/dist/katex.min.css'
+import '../CSS/QuestionsPage.css'
 
 //this is for practice questions (math or english)
 
@@ -39,6 +41,14 @@ export default function PracticeQuestions() {
         // Clear chat history for new question
         setChatHistory([])
     }
+
+    const handleTypingComplete = (messageIndex) => {
+        setChatHistory(prev => {
+            const updated = [...prev];
+            updated[messageIndex].status = 'complete';
+            return updated;
+        });
+      };
 
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
@@ -279,61 +289,63 @@ export default function PracticeQuestions() {
                             )}
                             
                             {chatHistory.map((message, index) => (
-                                <div key={index} className="chat-message">
-                                    <div className="user-message">
-                                        <strong>You:</strong> {message.user}
-                                    </div>
-                                    <div className="tutor-response">
-                                        <ReactMarkdown
+                                <div className='qpage_messages_container' key={index}>
+                                {/* User message with wrapper for right alignment */}
+                                <div className='message-wrapper user'>
+                                    <div className='chat_box_user_message'>{message.user}</div>
+                                </div>
+                                
+                                {/* AI message with wrapper for left alignment */}
+                                <div className='message-wrapper ai'>
+                                    <div className='chat_box_ai_message'>
+                                    {message.status === 'pending' ? (
+                                        <div className="typing-indicator">Loading...</div>
+                                    ) : message.status === 'streaming' ? (
+                                        <StreamingMessage 
+                                            response={message.response} 
+                                            onComplete={() => handleTypingComplete(index)}
+                                        />
+                                    ) : message.status === 'error' ? (
+                                        <div>Sorry, I couldn&apos;t process that request.</div>
+                                    ) : (
+                                        <ReactMarkdown 
                                             remarkPlugins={[remarkMath]}
                                             rehypePlugins={[rehypeKatex]}
                                         >
                                             {message.tutor}
                                         </ReactMarkdown>
+                                    )}
                                     </div>
                                 </div>
-                            ))}
-                            
-                            {isLoading && (
-                                <div className="loading-message">
-                                    <div className="typing-indicator">
-                                        <span>Tutor is thinking</span>
-                                        <div className="dots">
-                                            <span>.</span>
-                                            <span>.</span>
-                                            <span>.</span>
-                                        </div>
-                                    </div>
                                 </div>
-                            )}
+                            ))
+                            }
                         </div>
-
-                        {/* Input Form */}
-                        <div className='ai_form'>
-                            {error && (
-                                <div className="error-message">
-                                    {error}
-                                </div>
-                            )}
-                            <div className="input-wrapper">
-                                <textarea
-                                    className="prompt auto-resize"
-                                    value={userQuestion}
-                                    onChange={(e) => setUserQuestion(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder="Ask me anything about this question..."
-                                    disabled={isLoading}
-                                    rows={1}
-                                />
-                                <button 
-                                    className="submit-button"
-                                    onClick={submitPrompt}
-                                    disabled={isLoading || !userQuestion.trim()}
-                                >
-                                    {isLoading ? '⏳' : '➤'}
-                                </button>
+                        <div className='qpage_form'>
+                        {error && (
+                            <div className="error-message">
+                                {error}
                             </div>
+                        )}
+                        <div className="input-wrapper">
+                            <textarea
+                                className="prompt auto-resize"
+                                value={userQuestion}
+                                onChange={(e) => setUserQuestion(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Ask me anything..."
+                                disabled={isLoading}
+                                rows={1}
+                            />
+                            <button 
+                                className="submit-button"
+                                onClick={submitPrompt}
+                                disabled={isLoading || !userQuestion.trim()}
+                            >
+                                {isLoading ? '⏳' : '➤'}
+                            </button>
                         </div>
+                        </div>  
                     </div>
                 </div>
             )}

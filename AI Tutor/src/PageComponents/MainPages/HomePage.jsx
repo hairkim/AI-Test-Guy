@@ -11,7 +11,6 @@ export default function HomePage() {
     const { navigateWithAuth } = useProtectedNavigation()
     const { user, session } = useAuth();
     const pages = ['Practice Exam', 'Practice Questions', 'Ask TutorGuy', 'Exam History']
-    const tasks = ['Daily 5 Math Questions','Daily 5 English Questions','Take a Practice Exam']
     const pageRoute = (page) => {
         switch (page) {
             case 'Practice Exam':
@@ -30,6 +29,7 @@ export default function HomePage() {
     }
 
     const [recentExams, setRecentExams] = useState(null)
+    const [userTasks, setUserTasks] = useState([])
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
     useEffect(() => {
@@ -39,13 +39,21 @@ export default function HomePage() {
             setRecentExams(exams)
             console.log("recent exams: ", recentExams)
         }
+
+        const loadUserTasks = async () => {
+            const tasks = await fetchUserTasks()
+            console.log("tasks: ", tasks)
+            setUserTasks(tasks)
+        }
         
         if (session) { // Only fetch when authenticated
             loadRecentExams()
+            loadUserTasks()
         }
         else {
             // Clear exam data when logged out
             setRecentExams(null)
+            setUserTasks([])
         }
     }, [session?.access_token])
 
@@ -85,6 +93,29 @@ export default function HomePage() {
         }
     }
 
+    const fetchUserTasks = async () => {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/daily/tasks/generate-daily`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                }
+            })
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`)
+            }
+
+            const tasks = await response.json()
+            console.log(tasks)
+            return tasks.tasks
+        } catch (error) {
+            console.error('Error fetching tasks:', error)
+            return null // Return null if error
+        }
+    }
+
     return (
         <div className="home-page">
             {/* Div for entire header (will be flexbox) */}
@@ -117,9 +148,9 @@ export default function HomePage() {
                 <div className='daily-tasks'>
                     <h2>Daily Tasks</h2>
                     <ul className='tasks'>
-                        {tasks.map((task, index) => (
+                        {userTasks.map((task, index) => (
                             // text, completed, onToggleComplete
-                            <TaskComponent key={index} text={task} completed={false} onToggleComplete={() => {}} />
+                            <TaskComponent key={index} text={task.task_title} completed={task.is_completed} onToggleComplete={() => {}} />
                         ))}
                     </ul>
                 </div>

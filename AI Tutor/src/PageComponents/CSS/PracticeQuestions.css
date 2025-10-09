@@ -136,7 +136,7 @@
     margin-bottom: 5px;
 }
 
-.chat-message {
+/* .chat-message {
     margin-bottom: 20px;
     padding: 15px;
     background: white;
@@ -287,7 +287,7 @@
 }
 
 /* Responsive design for mobile */
-@media (max-width: 768px) {
+/* @media (max-width: 768px) {
     .quick-actions {
         flex-direction: column;
     }
@@ -310,15 +310,15 @@
         align-self: flex-end;
         min-width: 80px;
     }
-}
+} */
 
 /* Auto-resize textarea */
-.auto-resize {
+/* .auto-resize {
     overflow-y: hidden;
-}
+} */
 
 /* Scrollbar styling for chat container */
-.ai_messages_container::-webkit-scrollbar {
+/* .ai_messages_container::-webkit-scrollbar {
     width: 6px;
 }
 
@@ -334,4 +334,4 @@
 
 .ai_messages_container::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
-}
+}  */

@@ -1,47 +1,36 @@
 import { supabase } from './SupabaseClient'
 
+const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
+
 const createOrGetUser = async (authUser) => {
   if (!authUser) return null
+  console.log("authUser: ", authUser)
 
   try {
-    // First, try to get existing user by email
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', authUser.email)
-      .single()
+    // Call your backend to create/get user
+    const response = await fetch(`${BACKEND_URL}/api/users/sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: authUser.id, // Supabase UUID
+        name: authUser.user_metadata?.display_name,
+        email: authUser.email,
+        created_at: authUser.created_at,
+        picture_url: ""
+      })
+    })
 
-    if (existingUser && !fetchError) {
-      console.log('✅ Found existing user:', existingUser)
-      return existingUser
-    }
-
-    // If user doesn't exist (PGRST116 = no rows returned), create them
-    if (fetchError?.code === 'PGRST116') {
-      console.log('👤 Creating new user in users table...')
-      
-      const { data: newUser, error: insertError } = await supabase
-        .from('users')
-        .insert({
-          name: authUser.user_metadata?.display_name || authUser.email.split('@')[0],
-          email: authUser.email,
-          picture_url: authUser.user_metadata?.avatar_url || null,
-          level: 1 // Default level
-        })
-        .select()
-        .single()
-
-      if (newUser && !insertError) {
-        console.log('✅ Created new user:', newUser)
-        return newUser
-      } else {
-        console.error('❌ Error creating user:', insertError)
-        return null
-      }
-    } else {
-      console.error('❌ Error fetching user:', fetchError)
+    if (!response.ok) {
+      console.error('❌ Error syncing user:', await response.text())
       return null
     }
+
+    const userData = await response.json()
+    console.log('✅ User synced:', userData)
+    return userData
+
   } catch (error) {
     console.error('❌ Error in createOrGetUser:', error)
     return null

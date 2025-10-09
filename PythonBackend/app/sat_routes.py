@@ -24,6 +24,7 @@ from app.sat_route_helpers import (
     SubmitTestResponse
 )
 from app.auth import get_current_user
+from app.dailytaskhelperfunctions import update_user_performance
 
 # Create router
 sat_router = APIRouter(prefix="/api/sat", tags=["SAT Questions"])
@@ -263,6 +264,8 @@ def submit_test(
         
         if is_correct:
             correct_count += 1
+
+        update_user_performance(exam.user_id, sat_question, is_correct, request.time_ended, db)
     
     # Update section based on module
     if module_number == 1:
