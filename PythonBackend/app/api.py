@@ -51,7 +51,7 @@ def ask(query: EnhancedQuery):
     sat_tutor = tb["sat_tutor"]
     
     # Use the new agent
-    solution = sat_tutor.solve(query.question)
+    solution = sat_tutor.solve(query.question, query.image if query.image else None)
     
     return {
         "solution": solution

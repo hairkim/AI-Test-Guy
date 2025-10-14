@@ -6,9 +6,11 @@ import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import SubjectToggle from '../SupportingComponents/SubjectToggle.jsx';
 import StreamingMessage from '../MiscComponents/streaming';
+import DragAndDrop from '../SupportingComponents/DragAndDrop.jsx';
 
 export default function QuestionsPage() {
     const [question, setQuestion] = useState("");
+    const [image, setImage] = useState(null);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [chatHistory, setChatHistory] = useState([]);
@@ -27,12 +29,10 @@ export default function QuestionsPage() {
         const handleScroll = () => {
             const currentScrollTop = container.scrollTop;
             
-            // If user scrolled up (decreased scroll position), disable auto-scroll
             if (currentScrollTop < lastScrollTop.current) {
                 setUserHasScrolled(true);
             }
             
-            // If user scrolled to very bottom, re-enable auto-scroll
             const { scrollTop, scrollHeight, clientHeight } = container;
             if (scrollTop + clientHeight >= scrollHeight - 5) {
                 setUserHasScrolled(false);
@@ -53,19 +53,26 @@ export default function QuestionsPage() {
         }
     }, [chatHistory, userHasScrolled]);
 
-    // Reset scroll state when new question is asked
+    // Store image function to pass to UnifiedInputComponent
+    const storeImage = (base64String) => {
+        console.log('storeImage called with:', base64String ? `${base64String.length} chars` : 'null');
+        setImage(base64String);
+    };
+
+    // Submit function
     const submitPrompt = async () => {
-        if (!question.trim()) {
-            setError("Please enter a question");
+        // Allow submission if either question or image is present
+        if (!question.trim() && !image) {
+            setError("Please enter a question or upload an image");
             return;
         }
 
         // Reset scroll state for new conversation
         setUserHasScrolled(false);
 
-        // ... rest of your existing submitPrompt code stays the same
         const newConversation = {
-            question: question.trim(),
+            question: question.trim() || "(Image uploaded)",
+            hasImage: !!image,
             response: null,
             timestamp: new Date(),
             status: 'pending'
@@ -73,17 +80,33 @@ export default function QuestionsPage() {
         setChatHistory(prev => [...prev, newConversation]);
 
         const currentQuestion = question;
+        const currentImage = image;
+        
+        // Clear inputs
         setQuestion("");
+        setImage(null);
+        
         setIsLoading(true);
         setError("");
 
         try {
+            const requestBody = {
+                question: currentQuestion || null,
+                image: currentImage || null
+            };
+
+            console.log('Sending request with:', {
+                hasQuestion: !!requestBody.question,
+                hasImage: !!requestBody.image,
+                imageLength: requestBody.image?.length
+            });
+
             const res = await fetch(`${BACKEND_URL}/ask`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ question: currentQuestion }),
+                body: JSON.stringify(requestBody),
             });
 
             const data = await res.json();
@@ -105,7 +128,7 @@ export default function QuestionsPage() {
                     updated[updated.length - 1].status = 'error';
                     return updated;
                 });
-                setError("Something went wrong.");
+                setError(data.detail || "Something went wrong.");
             }
         } catch (err) {
             setChatHistory(prev => {
@@ -116,14 +139,6 @@ export default function QuestionsPage() {
             setError("Server error: " + err.message);
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    // ... rest of your component stays the same
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            submitPrompt();
         }
     };
 
@@ -140,16 +155,22 @@ export default function QuestionsPage() {
             <div className='qpage_toggle_buttons'>
                 <SubjectToggle />
             </div>
+            
             <div className='qpage_chat_box' ref={chatContainerRef}>
                 {chatHistory.length === 0 ? (
                     <div className='qpage_no_messages'>
-                        <div>Type something to start a conversation with Tutor Guy!</div>
+                        <div>Type something or upload an image to start a conversation with Tutor Guy!</div>
                     </div>
                 ) : (
                     chatHistory.map((message, index) => (
                         <div className='qpage_messages_container' key={index}>
                             <div className='message-wrapper user'>
-                                <div className='chat_box_user_message'>{message.question}</div>
+                                <div className='chat_box_user_message'>
+                                    {message.question}
+                                    {message.hasImage && (
+                                        <div className='image-indicator'>📷 Image attached</div>
+                                    )}
+                                </div>
                             </div>
                             <div className='message-wrapper ai'>
                                 <div className='chat_box_ai_message'>
@@ -176,26 +197,17 @@ export default function QuestionsPage() {
                     ))
                 )}
             </div>
+            
             <div className='qpage_form'>
                 {error && <div className="error-message">{error}</div>}
-                <div className="input-wrapper">
-                    <textarea
-                        className="prompt auto-resize"
-                        value={question}
-                        onChange={(e) => setQuestion(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Ask me anything..."
-                        disabled={isLoading}
-                        rows={1}
-                    />
-                    <button 
-                        className="submit-button"
-                        onClick={submitPrompt}
-                        disabled={isLoading || !question.trim()}
-                    >
-                        {isLoading ? '⏳' : '➤'}
-                    </button>
-                </div>
+                
+                <DragAndDrop 
+                    question={question}
+                    setQuestion={setQuestion}
+                    onSubmit={submitPrompt}
+                    isLoading={isLoading}
+                    storeImage={storeImage}
+                />
             </div>
         </div>
     );
