@@ -76,22 +76,31 @@ class ConversationalSATTutor:
     def _extract_image_content(self, image_base64: str) -> dict:
         """Use vision LLM to extract content from the image"""
         prompt = """
-        Analyze this image and extract the following information:
+        Analyze this image CAREFULLY and extract ALL information:
         
-        1. **Question Text**: If there is any question text visible in the image, extract it word-for-word.
-        2. **Diagram/Visual Elements**: Describe any diagrams, graphs, charts, tables, or visual elements present.
-        3. **Mathematical Notation**: Identify any mathematical expressions, equations, or formulas.
-        4. **Answer Choices**: If there are answer choices visible (like A, B, C, D or multiple choice options), extract them EXACTLY as they appear. Include the letter/number labels.
+        1. **Question Text**: Extract the main question being asked, word-for-word.
+        
+        2. **Mathematical Elements**: THIS IS CRITICAL - Extract ALL equations, expressions, formulas, or mathematical notation that are part of the problem. This includes:
+           - Equations (like s + 7r = 27, r = 3)
+           - Expressions (like x^2 + 5x + 6)
+           - Given values or constraints
+           - Any mathematical notation shown separately from the question text
+           
+        3. **Diagram/Visual Elements**: Describe any graphs, charts, tables, geometric shapes, or visual elements.
+        
+        4. **Answer Choices**: If there are answer choices visible (like A, B, C, D), extract them EXACTLY as they appear with their labels.
         
         Format your response as:
         QUESTION_TEXT: [the exact question text, or "NONE" if no question is visible]
+        MATH_ELEMENTS: [ALL equations, expressions, formulas shown - extract them exactly as written, or "NONE"]
         HAS_DIAGRAM: [YES or NO]
         DIAGRAM_DESCRIPTION: [detailed description of visual elements, or "NONE" if no diagram]
-        MATH_ELEMENTS: [list any mathematical notation present, or "NONE"]
         ANSWER_CHOICES: [list each answer choice with its label exactly as shown, or "NONE"]
         
-        Example for answer choices:
-        ANSWER_CHOICES: A) 5, B) 10, C) 15, D) 20
+        Examples:
+        MATH_ELEMENTS: s + 7r = 27, r = 3
+        MATH_ELEMENTS: y = 2x + 5, x > 0
+        ANSWER_CHOICES: A) (6, 3), B) (3, 6), C) (3, 27), D) (27, 3)
         """
         
         response = self.llm.predict_with_image(prompt, image_base64)
@@ -99,13 +108,16 @@ class ConversationalSATTutor:
         # Parse the response
         extracted = {
             'question_text': self._extract_field(response, 'QUESTION_TEXT'),
+            'math_elements': self._extract_field(response, 'MATH_ELEMENTS'),  # Now first!
             'has_diagram': self._extract_field(response, 'HAS_DIAGRAM') == 'YES',
             'diagram_description': self._extract_field(response, 'DIAGRAM_DESCRIPTION'),
-            'math_elements': self._extract_field(response, 'MATH_ELEMENTS'),
             'answer_choices': self._extract_field(response, 'ANSWER_CHOICES')
         }
         
-        print(f"Extracted answer choices: {extracted['answer_choices']}")  # Debug log
+        # Debug logging
+        print(f"Extracted question: {extracted['question_text']}")
+        print(f"Extracted math elements: {extracted['math_elements']}")
+        print(f"Extracted answer choices: {extracted['answer_choices']}")
         
         return extracted
     
@@ -129,7 +141,8 @@ class ConversationalSATTutor:
                     question_text=image_content['question_text'],
                     diagram_info=image_content['diagram_description'],
                     has_diagram=image_content['has_diagram'],
-                    answer_choices=image_content['answer_choices']  # FIX: Added this parameter
+                    answer_choices=image_content['answer_choices'],
+                    math_elements=image_content['math_elements']  # FIX: Added math elements
                 )
             elif image_content['has_diagram']:
                 # Image only has a diagram - explain it
@@ -143,18 +156,25 @@ class ConversationalSATTutor:
                 question_prompt=question_prompt,
                 diagram_info=image_content['diagram_description'],
                 extracted_text=image_content['question_text'],
-                answer_choices=image_content['answer_choices']
+                answer_choices=image_content['answer_choices'],
+                math_elements=image_content['math_elements']  # FIX: Added math elements
             )
         
         # Case 3: Only text prompt (no image) - same as old ConversationalSATTutor
         else:
             return self._solve_question(question_text=question_prompt)
     
-    def _solve_question(self, question_text: str, diagram_info: str = None, has_diagram: bool = False, answer_choices: str = None):
-        """Solve a question with optional diagram context and answer choices"""
+    def _solve_question(self, question_text: str, diagram_info: str = None, has_diagram: bool = False, answer_choices: str = None, math_elements: str = None):
+        """Solve a question with optional diagram context, math elements, and answer choices"""
         context = ""
+        
+        # Add math elements (equations, expressions) to context
+        if math_elements:
+            context += f"\n\nMathematical Elements/Equations: {math_elements}\n"
+        
+        # Add diagram description if present
         if has_diagram and diagram_info:
-            context = f"\n\nDiagram Description: {diagram_info}\n"
+            context += f"\nDiagram Description: {diagram_info}\n"
         
         # Add answer choices to context if available
         answer_choice_instruction = ""
@@ -230,12 +250,15 @@ class ConversationalSATTutor:
         
         return self.llm.predict(prompt)
     
-    def _solve_with_context(self, question_prompt: str, diagram_info: str, extracted_text: str = None, answer_choices: str = None):
+    def _solve_with_context(self, question_prompt: str, diagram_info: str, extracted_text: str = None, answer_choices: str = None, math_elements: str = None):
         """Solve a user's question using the diagram/image as supporting context"""
         context_parts = []
         
         if extracted_text:
             context_parts.append(f"Text from image: {extracted_text}")
+        
+        if math_elements:
+            context_parts.append(f"Mathematical elements/equations from image: {math_elements}")
         
         if diagram_info:
             context_parts.append(f"Visual elements from image: {diagram_info}")
