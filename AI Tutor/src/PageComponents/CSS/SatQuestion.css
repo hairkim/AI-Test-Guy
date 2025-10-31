@@ -115,3 +115,57 @@
     margin-top: 16px;
     padding: 8px 0;
 }
+
+.choice-item.correct {
+    background-color: #d4edda;
+    border-color: #28a745;
+    animation: correctPulse 0.3s ease-in-out;
+}
+
+.choice-item.incorrect {
+    background-color: #f8d7da;
+    border-color: #dc3545;
+    animation: incorrectShake 0.3s ease-in-out;
+}
+
+.choice-item.correct .bubble {
+    background-color: #28a745;
+}
+
+.choice-item.incorrect .bubble {
+    background-color: #dc3545;
+}
+
+.choice-item.correct .choice-letter,
+.choice-item.incorrect .choice-letter {
+    color: white;
+}
+
+/* Optional: Add animations for better UX */
+@keyframes correctPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.02);
+    }
+}
+
+@keyframes incorrectShake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-5px);
+    }
+    75% {
+        transform: translateX(5px);
+    }
+}
+
+/* Disable hover effects when showing feedback */
+.choice-item.correct:hover,
+.choice-item.incorrect:hover {
+    transform: none;
+    cursor: not-allowed;
+}

@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from app.database import get_db
-from app.models import SATQuestion, MockExam, MockExamQuestion, MockExamSection
+from app.models import SATQuestion, MockExam, MockExamQuestion, MockExamSection, CollegeSATScore, DailyPracticeSet
 from app.sat_route_helpers import (
     generate_section_questions,
     get_difficulty_distribution,
@@ -23,7 +23,8 @@ from app.sat_route_helpers import (
     SubmitTestRequest,
     SubmitTestResponse
 )
-from app.auth import get_current_user
+from app.auth import get_current_user, get_current_user_db
+from app.dailytaskhelperfunctions import update_user_performance
 
 # Create router
 sat_router = APIRouter(prefix="/api/sat", tags=["SAT Questions"])
@@ -36,23 +37,60 @@ def get_random_questions(
     count: int = Query(10, ge=1, le=100, description="Number of questions to return"),
     difficulty: Optional[str] = Query(None, description="Easy, Medium, or Hard"),
     domain: Optional[str] = Query(None, description="Specific domain to filter by"),
+    user = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
-    """Get random questions for practice"""
+    """Get random questions for practice - same set per day"""
     
-    query = db.query(SATQuestion).filter(SATQuestion.section == section)
+    today = date.today()
     
-    if difficulty:
-        query = query.filter(SATQuestion.difficulty == difficulty)
+    # Check if user already has a practice set for today with these filters
+    existing_set = db.query(DailyPracticeSet).filter(
+        DailyPracticeSet.user_id == user.id,
+        DailyPracticeSet.date == today,
+        DailyPracticeSet.section == section,
+        DailyPracticeSet.difficulty == difficulty,
+        DailyPracticeSet.domain == domain
+    ).first()
     
-    if domain:
-        query = query.filter(SATQuestion.domain == domain)
-    
-    # Get random questions
-    questions = query.order_by(func.random()).limit(count).all()
-    
-    if not questions:
-        raise HTTPException(status_code=404, detail="No questions found matching criteria")
+    if existing_set:
+        # Return the existing set of questions
+        questions = db.query(SATQuestion).filter(
+            SATQuestion.id.in_(existing_set.question_ids)   
+        ).all()
+        
+        # Sort questions to match the original order
+        question_dict = {q.id: q for q in questions}
+        questions = [question_dict[qid] for qid in existing_set.question_ids if qid in question_dict]
+        
+    else:
+        # Generate new random questions
+        query = db.query(SATQuestion).filter(SATQuestion.section == section)
+        
+        if difficulty:
+            query = query.filter(SATQuestion.difficulty == difficulty)
+        
+        if domain:
+            query = query.filter(SATQuestion.domain == domain)
+        
+        # Get random questions
+        questions = query.order_by(func.random()).limit(count).all()
+        
+        if not questions:
+            raise HTTPException(status_code=404, detail="No questions found matching criteria")
+        
+        # Save this set for the day
+        question_ids = [q.id for q in questions]
+        new_set = DailyPracticeSet(
+            user_id=user.id,
+            date=today,
+            section=section,
+            difficulty=difficulty,
+            domain=domain,
+            question_ids=question_ids
+        )
+        db.add(new_set)
+        db.commit()
     
     return questions_to_response(questions, include_answers=True)
 
@@ -263,6 +301,8 @@ def submit_test(
         
         if is_correct:
             correct_count += 1
+
+        update_user_performance(exam.user_id, sat_question, is_correct, request.time_ended, db)
     
     # Update section based on module
     if module_number == 1:
@@ -379,78 +419,47 @@ def get_section_module_questions_api(
         "section_type": section_type,
         "module": module_number,
         "total_questions": total_questions,
-        "questions": questions_to_response(questions, include_answers=False)
+        "questions": questions_to_response(questions, include_answers=True)
     }
     
-
-
-# @sat_router.get("/mock-exam/adaptive/{exam_type}")
-# def generate_adaptive_mock_exam(
-#     exam_type: str,
-#     user_performance_level: str = Query("medium", description="easy, medium, or hard based on user's typical performance"),
-#     db: Session = Depends(get_db)
-# ):
-#     """Generate an adaptive mock exam that adjusts difficulty based on user performance level"""
+@sat_router.get("/colleges/recommendations/{score}")
+def get_college_recommendations(
+    score: int,
+    safety_limit: int = Query(15, ge=5, le=50),
+    target_limit: int = Query(15, ge=5, le=50),
+    reach_limit: int = Query(15, ge=5, le=50),
+    db: Session = Depends(get_db)
+):
+    """Get college recommendations: safety, target, and reach schools"""
     
-#     # Adaptive difficulty distribution based on user's level
-#     if user_performance_level == "easy":
-#         # More easy questions for struggling students
-#         if exam_type == "math_only":
-#             difficulty_mix = {"Easy": 15, "Medium": 20, "Hard": 9}
-#         else:
-#             difficulty_mix = {"Easy": 18, "Medium": 25, "Hard": 11}
-#     elif user_performance_level == "hard":
-#         # More challenging distribution for advanced students  
-#         if exam_type == "math_only":
-#             difficulty_mix = {"Easy": 6, "Medium": 20, "Hard": 18}
-#         else:
-#             difficulty_mix = {"Easy": 8, "Medium": 25, "Hard": 21}
-#     else:
-#         # Standard distribution for average students
-#         difficulty_mix = get_difficulty_distribution(exam_type)
+    # Safety schools: score is above 75th percentile (user's score > school's max range)
+    safety_schools = db.query(CollegeSATScore).filter(
+        CollegeSATScore.sat_max < score - 30  # More realistic threshold
+    ).order_by(CollegeSATScore.sat_max.desc()).limit(safety_limit).all()
     
-#     all_questions = []
+    # Target schools: score is within the school's range
+    target_schools = db.query(CollegeSATScore).filter(
+        CollegeSATScore.sat_min <= score,
+        CollegeSATScore.sat_max >= score
+    ).order_by(CollegeSATScore.sat_min).limit(target_limit).all()
     
-#     # Generate questions based on exam type
-#     if exam_type in ["math_only", "full_sat"]:
-#         math_questions = generate_section_questions(db, "Math", difficulty_mix)
-#         all_questions.extend(math_questions)
+    # Reach schools: score is below 25th percentile but within reason
+    reach_schools = db.query(CollegeSATScore).filter(
+        CollegeSATScore.sat_min > score,
+        CollegeSATScore.sat_min <= score + 150  # Increased range for more options
+    ).order_by(CollegeSATScore.sat_min).limit(reach_limit).all()
     
-#     if exam_type in ["english_only", "full_sat"]:
-#         english_questions = generate_section_questions(db, "English", difficulty_mix)
-#         all_questions.extend(english_questions)
-    
-#     # Create mock exam record with adaptive config
-#     mock_exam = MockExam(
-#         exam_type=f"{exam_type}_adaptive",
-#         total_questions=len(all_questions),
-#         config={
-#             "difficulty_mix": difficulty_mix,
-#             "user_performance_level": user_performance_level,
-#             "adaptive": True
-#         }
-#     )
-#     db.add(mock_exam)
-#     db.flush()
-    
-#     # Create question associations
-#     for i, question in enumerate(all_questions):
-#         mock_exam_question = MockExamQuestion(
-#             mock_exam_id=mock_exam.id,
-#             sat_question_id=question.id,
-#             question_order=i + 1
-#         )
-#         db.add(mock_exam_question)
-    
-#     db.commit()
-    
-#     time_limits = {"math_only": 70, "english_only": 64, "full_sat": 134}
-    
-#     return MockExamResponse(
-#         exam_id=str(mock_exam.id),
-#         exam_type=exam_type,
-#         total_questions=len(all_questions),
-#         questions=questions_to_response(all_questions, include_answers=False),
-#         time_limit_minutes=time_limits.get(exam_type, 60)
-#     )
-    
+    return {
+        "user_score": score,
+        "total_colleges": len(safety_schools) + len(target_schools) + len(reach_schools),
+        "recommendations": {
+            "safety": [college.to_dict() for college in safety_schools],
+            "target": [college.to_dict() for college in target_schools],
+            "reach": [college.to_dict() for college in reach_schools]
+        },
+        "summary": {
+            "safety_count": len(safety_schools),
+            "target_count": len(target_schools),
+            "reach_count": len(reach_schools)
+        }
+    }

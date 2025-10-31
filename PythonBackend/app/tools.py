@@ -46,6 +46,50 @@ class OpenAIWrapper:
         except Exception as e:
             return f"Error calling OpenAI: {str(e)}"
 
+    def predict_with_image(self, prompt: str, image_base64: str, model: str = "gpt-4o", temperature: float = 0) -> str:
+        """
+        Make prediction with image input using OpenAI's vision capabilities.
+        
+        Args:
+            prompt: Text prompt/question
+            image_base64: Base64 encoded image (with or without data URL prefix)
+            model: Vision-capable model (gpt-4o, gpt-4o-mini, or gpt-4-vision-preview)
+            temperature: Sampling temperature
+            
+        Returns:
+            Model's response text
+        """
+        try:
+            # Clean the base64 string if it has a data URL prefix
+            if ',' in image_base64:
+                image_base64 = image_base64.split(',', 1)[1]
+            
+            # Create the message with both text and image
+            response = self.client.chat.completions.create(
+                model=model,
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_base64}",
+                                "detail": "high"  # Can be "low", "high", or "auto"
+                            }
+                        }
+                    ]
+                }],
+                max_tokens=1500,
+                temperature=temperature
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            return f"Error calling OpenAI vision: {str(e)}"
+
 class OpenAICompatibleLLM(LLM):
     openai_wrapper: OpenAIWrapper
 

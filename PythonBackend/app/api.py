@@ -17,7 +17,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.schema import OutputParserException
 import json
 from typing import Optional
-from app.pipeline import process_image_query_with_gpt, classify_question_to_collection
+# from app.pipeline import process_image_query_with_gpt, classify_question_to_collection
 
 router = APIRouter()
 
@@ -51,7 +51,7 @@ def ask(query: EnhancedQuery):
     sat_tutor = tb["sat_tutor"]
     
     # Use the new agent
-    solution = sat_tutor.solve(query.question)
+    solution = sat_tutor.solve(query.question, query.image if query.image else None)
     
     return {
         "solution": solution

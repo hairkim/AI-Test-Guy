@@ -5,22 +5,48 @@ import 'katex/dist/katex.min.css'
 import SubjectToggle from '../SupportingComponents/SubjectToggle.jsx';
 import StreamingMessage from '../MiscComponents/streaming';
 
+//PAGE FOR ENGLISH AI TUTOR GUY
+
 export default function EnglishPage() {
     const [question, setQuestion] = useState("");
     const [passage, setPassage] = useState("");
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [chatHistory, setChatHistory] = useState([]);
+    const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
     const chatContainerRef = useRef(null);
 
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
+    // Check if user is near bottom
+    const isNearBottom = () => {
+        if (!chatContainerRef.current) return true;
+        
+        const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+        const threshold = 25;
+        return scrollTop + clientHeight >= scrollHeight - threshold;
+    };
+
+    // Handle scroll events to track user behavior
     useEffect(() => {
-        if (chatContainerRef.current) {
+        const container = chatContainerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            setShouldAutoScroll(isNearBottom());
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Only auto-scroll if user is near bottom
+    useEffect(() => {
+        if (shouldAutoScroll && chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
-    }, [chatHistory]);
+    }, [chatHistory, shouldAutoScroll]);
   
     const submitPrompt = async () => {
       if (!question.trim()) {
@@ -122,7 +148,7 @@ export default function EnglishPage() {
                     />
                 </div>
             </div>
-            <div className='english_qpage_messages_main_container'>
+            <div className='english_qpage_messages_main_container' ref={chatContainerRef}>
                 {chatHistory.length === 0 ? (
                 <div className='english_qpage_no_messages'>
                     <div>
@@ -132,8 +158,7 @@ export default function EnglishPage() {
                 ) : (
                 chatHistory.map((message, index) => (
                 <div className='english_qpage_messages_container' 
-                key={index} 
-                ref={chatContainerRef}
+                key={index}
                 >
                     {/* User message with wrapper for right alignment */}
                     <div className='message-wrapper user'>

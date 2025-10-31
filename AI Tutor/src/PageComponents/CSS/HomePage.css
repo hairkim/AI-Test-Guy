@@ -13,6 +13,7 @@
 .header-component {
     display: flex;
     justify-content: space-between;
+    height: 15%;
 }
 
 .left-side {
@@ -47,7 +48,7 @@
 .middle-content {
     display: flex;
     width: auto;
-    height: 30%;
+    height: 20%;
     padding: 0 3vw;
     /* border: 1px solid black; */
 }
@@ -69,12 +70,16 @@
 
 .level {
     width: 33%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .bottom-content{
     display: flex;
     justify-content: center;
     align-items: center;
+    height: 25%;
 }
 
 .most-recent-exam {

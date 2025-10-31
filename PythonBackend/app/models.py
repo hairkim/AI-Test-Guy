@@ -1,5 +1,5 @@
 from pydantic import BaseModel, root_validator
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Index, Boolean, UniqueConstraint, CheckConstraint, DateTime, func, text
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Index, Boolean, UniqueConstraint, CheckConstraint, DateTime, func, text, Date
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from .database import Base
 from pgvector.sqlalchemy import Vector
@@ -8,7 +8,7 @@ import uuid
 from typing import Optional, Any, Dict
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableDict
-from datetime import datetime
+from datetime import datetime, date
 
 class EnhancedQuery(BaseModel):
     question: Optional[str] = None
@@ -78,13 +78,14 @@ class EnglishQuery(BaseModel):
 
 class User(Base):
     __tablename__ = "users"
-    id = Column(Integer, primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)  # Changed from Integer
     name = Column(String, unique=True, nullable=False)
     email = Column(String, unique=True, nullable=False)
     picture_url = Column(String)
     created_at = Column(DateTime(timezone=True), nullable=False,
                          server_default=text("timezone('UTC', now())"))
     level = Column(Integer, default=1)
+    points = Column(Integer, default=0)
 
 class Task_Types(Base):
     __tablename__ = "task_types"
@@ -99,8 +100,8 @@ class Task_Types(Base):
 
 class UserTaskCompletion(Base):
     __tablename__ = "user_task_completions"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)  # Already UUID ✓
     task_type_id = Column(Integer, ForeignKey("task_types.id"), nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=False, 
                          server_default=text("timezone('UTC', now())"))
@@ -108,169 +109,28 @@ class UserTaskCompletion(Base):
         UniqueConstraint("user_id", "task_type_id", "completed_at", name="uq_user_task_completion"),
     )
 
-#not using this anymore
-class Exam(Base):
-    __tablename__ = "exams"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True, nullable=False)
-    description = Column(Text)
-
-    sections = relationship("Section", back_populates="exam")
-
-
-#not using this anymore
-class Section(Base):
-    __tablename__ = "sections"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-    exam_id = Column(Integer, ForeignKey("exams.id"))
-
-    exam = relationship("Exam", back_populates="sections")
-    questions = relationship("Question", back_populates="section")
-
-
-#not using
-class Question(Base):
-    __tablename__ = "questions"
-    id = Column(Integer, primary_key=True)
-    section_id = Column(Integer, ForeignKey("sections.id"))
-    question_text = Column(Text, nullable=False)
-    answer = Column(String)
-    explanation = Column(Text)
-    image = Column(Text)  # base64 string or URL
-
-    section = relationship("Section", back_populates="questions")
-    solutions = relationship("Solution", back_populates="question")
-
-#not using
-class Solution(Base):
-    __tablename__ = "solutions"
-    id = Column(Integer, primary_key=True)
-    question_id = Column(Integer, ForeignKey("questions.id"))
-    step_num = Column(Integer)
-    step_text = Column(Text)
-
-    question = relationship("Question", back_populates="solutions")
-
-#not using
-class QuestionEmbedding(Base):
-    __tablename__ = "question_embeddings"
+class DailyTask(Base):
+    __tablename__ = "daily_tasks"
+    
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"))
-    text = Column(Text)
-    # embedding = Column(Vector(1536))  # OpenAI embedding size
-    embedding = Column(Vector(768))
-
-    question = relationship("Question", backref="embedding")
-
-#not using
-class Passage(Base):
-    __tablename__ = "passages"
-
-    id = Column(Integer, primary_key=True)
-    dataset = Column(Text, nullable=False)           # e.g., 'MCTest'
-    split = Column(Text, nullable=False)             # 'train' | 'dev' | 'test'
-    story_id = Column(Text, nullable=False, unique=True)  # e.g., 'mc160.train.0'
-    text = Column(Text, nullable=False)              # full story text
-    meta = Column(JSONB, nullable=False, server_default="{}")
-
-    # children
-    questions = relationship(
-        "ReadingQuestion",
-        back_populates="passage",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
-    sentences = relationship(
-        "PassageSentence",
-        back_populates="passage",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-        order_by="PassageSentence.sent_idx",
-    )
-
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)  # Already UUID ✓
+    task_type_id = Column(Integer, ForeignKey("task_types.id"))
+    task_date = Column(DateTime(timezone=True), nullable=False)
+    
+    # Personalization
+    section = Column(String)
+    domain = Column(String)
+    difficulty = Column(String)
+    target_count = Column(Integer, default=5)
+    task_title = Column(String)
+    
+    # Progress
+    progress_count = Column(Integer, default=0)
+    is_completed = Column(Boolean, default=False)
+    completed_at = Column(DateTime(timezone=True))
+    
     __table_args__ = (
-        Index("ix_passages_dataset_split", "dataset", "split"),
-    )
-
-#not using
-class ReadingQuestion(Base):
-    __tablename__ = "reading_questions"
-
-    id = Column(Integer, primary_key=True)
-    passage_id = Column(Integer, ForeignKey("passages.id", ondelete="CASCADE"), nullable=False)
-    q_index = Column(Integer, nullable=False)  # 1..4 per story
-    question_text = Column(Text, nullable=False)
-    requires_multiple = Column(Boolean, nullable=False)  # from 'multiple:' vs 'one:'
-
-    passage = relationship("Passage", back_populates="questions")
-
-    choices = relationship(
-        "ReadingChoice",
-        back_populates="question",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-        order_by="ReadingChoice.label",
-    )
-
-    # one-to-one
-    answer = relationship(
-        "ReadingAnswer",
-        back_populates="question",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-        uselist=False,
-    )
-
-    __table_args__ = (
-        UniqueConstraint("passage_id", "q_index", name="uq_readingq_passage_qindex"),
-        Index("ix_reading_questions_passage_qindex", "passage_id", "q_index"),
-    )
-
-#not using
-class ReadingChoice(Base):
-    __tablename__ = "reading_choices"
-
-    id = Column(Integer, primary_key=True)
-    question_id = Column(Integer, ForeignKey("reading_questions.id", ondelete="CASCADE"), nullable=False)
-    label = Column(String(1), nullable=False)   # 'A'|'B'|'C'|'D'
-    text = Column(Text, nullable=False)
-
-    question = relationship("ReadingQuestion", back_populates="choices")
-
-    __table_args__ = (
-        UniqueConstraint("question_id", "label", name="uq_choice_question_label"),
-        CheckConstraint("label IN ('A','B','C','D')", name="ck_choice_label_abcd"),
-    )
-
-#not using
-class ReadingAnswer(Base):
-    __tablename__ = "reading_answers"
-
-    # question_id is the PK (one answer per question)
-    question_id = Column(Integer, ForeignKey("reading_questions.id", ondelete="CASCADE"), primary_key=True)
-    label = Column(String(1), nullable=False)  # 'A'|'B'|'C'|'D'
-
-    question = relationship("ReadingQuestion", back_populates="answer")
-
-    __table_args__ = (
-        CheckConstraint("label IN ('A','B','C','D')", name="ck_answer_label_abcd"),
-    )
-
-#not using
-class PassageSentence(Base):
-    __tablename__ = "passage_sentences"
-
-    id = Column(Integer, primary_key=True)
-    passage_id = Column(Integer, ForeignKey("passages.id", ondelete="CASCADE"), nullable=False)
-    sent_idx = Column(Integer, nullable=False)      # 1-based line number
-    sent_text = Column(Text, nullable=False)
-
-    passage = relationship("Passage", back_populates="sentences")
-
-    __table_args__ = (
-        UniqueConstraint("passage_id", "sent_idx", name="uq_sentence_passage_idx"),
-        Index("ix_passage_sentences_passage_idx", "passage_id", "sent_idx"),
+        Index("ix_daily_tasks_user_date", "user_id", "task_date"),
     )
 
 
@@ -346,12 +206,10 @@ class SATQuestionEmbedding(Base):
 
 
 class UserPerformance(Base):
-    """Track user performance across different domains/difficulties"""
     __tablename__ = "user_performance"
 
-
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(String, nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False) 
 
 
     # Performance metrics by category
@@ -377,12 +235,11 @@ class UserPerformance(Base):
         return (self.questions_correct / self.questions_attempted) * 100
 
 class MockExam(Base):
-    """Main mock exam record - can contain multiple sections"""
     __tablename__ = "mock_exams"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(String)
-    exam_type = Column(String, nullable=False)  # "full_exam", "math_only", "english_only"
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))  # Changed from String, added ForeignKey
+    exam_type = Column(String, nullable=False)
     
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("timezone('UTC', now())"))
     started_at = Column(DateTime(timezone=True))
@@ -559,3 +416,31 @@ class CollegeSATScore(Base):
 
     def __repr__(self):
         return f"<CollegeSATScore(college='{self.college_name}', range='{self.sat_range}')>"
+
+class QuestionAttempt(Base):
+    __tablename__ = "question_attempts"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(UUID, ForeignKey("users.id"))
+    question_id = Column(String, ForeignKey("sat_questions.id"))
+    attempt_count = Column(Integer, default=0)
+    is_correct = Column(Boolean, default=False)
+
+
+#this is to track daily practice sets (delete after each day)
+class DailyPracticeSet(Base):
+    __tablename__ = "daily_practice_sets"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(UUID, ForeignKey("users.id"))
+    date = Column(Date, default=date.today, index=True)
+    section = Column(String)  # Math or English
+    difficulty = Column(String, nullable=True)
+    domain = Column(String, nullable=True)
+    question_ids = Column(JSONB)  # Store list of question IDs
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Composite unique constraint - one set per user per day per section
+    __table_args__ = (
+        UniqueConstraint('user_id', 'date', 'section', 'difficulty', 'domain', name='unique_daily_set'),
+    )
