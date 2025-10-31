@@ -1,5 +1,5 @@
 from pydantic import BaseModel, root_validator
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Index, Boolean, UniqueConstraint, CheckConstraint, DateTime, func, text
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Index, Boolean, UniqueConstraint, CheckConstraint, DateTime, func, text, Date
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from .database import Base
 from pgvector.sqlalchemy import Vector
@@ -8,7 +8,7 @@ import uuid
 from typing import Optional, Any, Dict
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableDict
-from datetime import datetime
+from datetime import datetime, date
 
 class EnhancedQuery(BaseModel):
     question: Optional[str] = None
@@ -85,6 +85,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), nullable=False,
                          server_default=text("timezone('UTC', now())"))
     level = Column(Integer, default=1)
+    points = Column(Integer, default=0)
 
 class Task_Types(Base):
     __tablename__ = "task_types"
@@ -415,3 +416,31 @@ class CollegeSATScore(Base):
 
     def __repr__(self):
         return f"<CollegeSATScore(college='{self.college_name}', range='{self.sat_range}')>"
+
+class QuestionAttempt(Base):
+    __tablename__ = "question_attempts"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(UUID, ForeignKey("users.id"))
+    question_id = Column(String, ForeignKey("sat_questions.id"))
+    attempt_count = Column(Integer, default=0)
+    is_correct = Column(Boolean, default=False)
+
+
+#this is to track daily practice sets (delete after each day)
+class DailyPracticeSet(Base):
+    __tablename__ = "daily_practice_sets"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(UUID, ForeignKey("users.id"))
+    date = Column(Date, default=date.today, index=True)
+    section = Column(String)  # Math or English
+    difficulty = Column(String, nullable=True)
+    domain = Column(String, nullable=True)
+    question_ids = Column(JSONB)  # Store list of question IDs
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Composite unique constraint - one set per user per day per section
+    __table_args__ = (
+        UniqueConstraint('user_id', 'date', 'section', 'difficulty', 'domain', name='unique_daily_set'),
+    )

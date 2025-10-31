@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from app.database import get_db
-from app.models import SATQuestion, MockExam, MockExamQuestion, MockExamSection, CollegeSATScore
+from app.models import SATQuestion, MockExam, MockExamQuestion, MockExamSection, CollegeSATScore, DailyPracticeSet
 from app.sat_route_helpers import (
     generate_section_questions,
     get_difficulty_distribution,
@@ -23,7 +23,7 @@ from app.sat_route_helpers import (
     SubmitTestRequest,
     SubmitTestResponse
 )
-from app.auth import get_current_user
+from app.auth import get_current_user, get_current_user_db
 from app.dailytaskhelperfunctions import update_user_performance
 
 # Create router
@@ -37,23 +37,60 @@ def get_random_questions(
     count: int = Query(10, ge=1, le=100, description="Number of questions to return"),
     difficulty: Optional[str] = Query(None, description="Easy, Medium, or Hard"),
     domain: Optional[str] = Query(None, description="Specific domain to filter by"),
+    user = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
-    """Get random questions for practice"""
+    """Get random questions for practice - same set per day"""
     
-    query = db.query(SATQuestion).filter(SATQuestion.section == section)
+    today = date.today()
     
-    if difficulty:
-        query = query.filter(SATQuestion.difficulty == difficulty)
+    # Check if user already has a practice set for today with these filters
+    existing_set = db.query(DailyPracticeSet).filter(
+        DailyPracticeSet.user_id == user.id,
+        DailyPracticeSet.date == today,
+        DailyPracticeSet.section == section,
+        DailyPracticeSet.difficulty == difficulty,
+        DailyPracticeSet.domain == domain
+    ).first()
     
-    if domain:
-        query = query.filter(SATQuestion.domain == domain)
-    
-    # Get random questions
-    questions = query.order_by(func.random()).limit(count).all()
-    
-    if not questions:
-        raise HTTPException(status_code=404, detail="No questions found matching criteria")
+    if existing_set:
+        # Return the existing set of questions
+        questions = db.query(SATQuestion).filter(
+            SATQuestion.id.in_(existing_set.question_ids)   
+        ).all()
+        
+        # Sort questions to match the original order
+        question_dict = {q.id: q for q in questions}
+        questions = [question_dict[qid] for qid in existing_set.question_ids if qid in question_dict]
+        
+    else:
+        # Generate new random questions
+        query = db.query(SATQuestion).filter(SATQuestion.section == section)
+        
+        if difficulty:
+            query = query.filter(SATQuestion.difficulty == difficulty)
+        
+        if domain:
+            query = query.filter(SATQuestion.domain == domain)
+        
+        # Get random questions
+        questions = query.order_by(func.random()).limit(count).all()
+        
+        if not questions:
+            raise HTTPException(status_code=404, detail="No questions found matching criteria")
+        
+        # Save this set for the day
+        question_ids = [q.id for q in questions]
+        new_set = DailyPracticeSet(
+            user_id=user.id,
+            date=today,
+            section=section,
+            difficulty=difficulty,
+            domain=domain,
+            question_ids=question_ids
+        )
+        db.add(new_set)
+        db.commit()
     
     return questions_to_response(questions, include_answers=True)
 

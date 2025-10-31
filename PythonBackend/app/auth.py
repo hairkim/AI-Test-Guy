@@ -48,6 +48,7 @@ def sync_user(request: UserSyncRequest, db: Session = Depends(get_db)):
         user.name = request.name
         user.email = request.email
         user.picture_url = request.picture_url
+        
         print(f"✅ Updated existing user: {user.email}")
     else:
         # Create new user
@@ -57,7 +58,8 @@ def sync_user(request: UserSyncRequest, db: Session = Depends(get_db)):
             email=request.email,
             picture_url=request.picture_url,
             created_at=request.created_at,
-            level=1
+            level=1,
+            points=0
         )
         db.add(user)
         print(f"✅ Created new user: {user.email}")
@@ -70,6 +72,33 @@ def sync_user(request: UserSyncRequest, db: Session = Depends(get_db)):
         "name": user.name,
         "email": user.email,
         "picture_url": user.picture_url,
-        "level": user.level
+        "level": user.level,
+        "points": user.points
     }
+
+def get_current_user_db(token: str = Depends(security), db: Session = Depends(get_db)) -> User:
+    """Get database User model (for routes that need points, level, etc.)"""
+    try:
+        # Verify the JWT token with Supabase
+        supabase_user = supabase.auth.get_user(token.credentials)
+        
+        # Get the actual user from YOUR database using the email
+        user_email = supabase_user.user.email
+        
+        # Query your local database for the User
+        db_user = db.query(User).filter(User.email == user_email).first()
+        
+        if not db_user:
+            raise HTTPException(
+                status_code=404, 
+                detail="User not found in database. Please sync user first."
+            )
+        
+        return db_user
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Auth error: {e}")
+        raise HTTPException(status_code=401, detail="Invalid token")
 

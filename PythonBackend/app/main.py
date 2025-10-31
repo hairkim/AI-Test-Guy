@@ -8,6 +8,7 @@ import os
 from app.auth import get_current_user
 from app.dailytaskroutes import daily_task_router
 from app.auth import user_router
+from app.survival_routes import survival_router
 
 load_dotenv()
 
@@ -21,6 +22,7 @@ app.include_router(sat_router)
 app.include_router(practice_tutor_router)
 app.include_router(daily_task_router)
 app.include_router(user_router)
+app.include_router(survival_router)
 
 app.add_middleware(
     CORSMiddleware,

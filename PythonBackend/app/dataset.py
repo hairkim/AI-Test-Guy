@@ -9,6 +9,7 @@ import torch
 from transformers import AutoTokenizer, AutoModel
 import pandas as pd
 import re
+from app.survival_models import SurvivalSession
 
 # MODEL_ID = "tbs17/MathBERT-custom"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

@@ -10,14 +10,17 @@ import { useProtectedNavigation } from '../../ClientStuff/UserProtectedNav.js'
 export default function HomePage() {
     const { navigateWithAuth } = useProtectedNavigation()
     const { user, session } = useAuth();
-    const pages = ['Practice Exam', 'Practice Questions', 'Ask TutorGuy', 'Exam History']
+    const pages = ['Practice Exam', 'Practice Questions', 'Survival', 'Ask TutorGuy', 'Exam History']
     const pageRoute = (page) => {
         switch (page) {
             case 'Practice Exam':
                 navigateWithAuth('/take_a_test')
                 break;
             case 'Practice Questions':
-                navigateWithAuth('/practice') // make new route later
+                navigateWithAuth('/practice')
+                break;
+            case 'Survival':
+                navigateWithAuth('/survival')
                 break;
             case 'Ask TutorGuy':
                 navigateWithAuth('/query')
@@ -148,7 +151,7 @@ export default function HomePage() {
                 <div className='daily-tasks'>
                     <h2>Daily Tasks</h2>
                     <ul className='tasks'>
-                        {userTasks.map((task, index) => (
+                        {userTasks && userTasks.map((task, index) => (
                             // text, completed, onToggleComplete
                             <TaskComponent key={index} text={task.task_title} completed={task.is_completed} onToggleComplete={() => {}} />
                         ))}

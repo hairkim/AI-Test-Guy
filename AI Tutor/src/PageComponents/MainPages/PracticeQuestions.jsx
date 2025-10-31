@@ -14,7 +14,7 @@ import '../CSS/QuestionsPage.css'
 
 export default function PracticeQuestions() {
     const location = useLocation()
-    const { session } = useAuth()
+    const { session, user } = useAuth()
     const {questions} = location.state || {}
     const [currentIndex, setCurrentIndex] = useState(0)
     const [userAnswer, setUserAnswer] = useState({})
@@ -272,7 +272,10 @@ export default function PracticeQuestions() {
                     </div>
                     
                     <div className='ai_container'>
-                        <h2>AI Tutor</h2>
+                        <div className='ai_header'>
+                            <h2>AI Tutor</h2>
+                            <p>{user.points}</p>
+                        </div>
                         {/* Chat History */}
                         <div className='ai_messages_container'>
                             {chatHistory.length === 0 && (

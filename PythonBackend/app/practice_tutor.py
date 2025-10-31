@@ -204,8 +204,7 @@ class PracticeQuestionTutor:
         passage = question_context.get('paragraph', '')
         response = self.english_tutor.solve(guidance_prompt, passage)
         return response
-    
-    # ... rest of your existing methods remain the same ...
+
     def provide_step_by_step(self, question: SATQuestion, step_requested: str, user_attempt: str = None):
         """
         Provide specific types of help based on what step the user requests
@@ -247,6 +246,7 @@ class PracticeQuestionTutor:
         """
         
         response = self.llm.predict(prompt)
+        
         return {
             "step_type": "hint",
             "content": response,

@@ -5,9 +5,11 @@
 import React, { useEffect, useState } from 'react'
 import '../CSS/MainPracticePage.css'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../ClientStuff/AuthContext'
 
 export default function MainPracticePage() {
     const navigate = useNavigate()
+    const { session } = useAuth()
     const [questions, setQuestions] = useState([])
     const [isLoading, setIsLoading] = useState(false)
     const [section, setSection] = useState(null)
@@ -45,7 +47,8 @@ export default function MainPracticePage() {
             const response = await fetch(`${BACKEND_URL}/api/sat/questions/random?section=${section}&count=${count}`, {
                 method: "GET",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session.access_token}`
                 }
             })
 

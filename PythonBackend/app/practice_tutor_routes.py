@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import SATQuestion
+from app.models import SATQuestion, User, QuestionAttempt
 from app.auth import get_current_user
 from app.practice_tutor import PracticeTutorRequest, PracticeTutorResponse, StepByStepRequest, StepByStepResponse
 from app.practice_tutor import PracticeQuestionTutor
@@ -60,6 +60,30 @@ async def get_step_by_step(
     # Get step-by-step guidance
     response = tutor.provide_step_by_step(question, request.step_requested, request.user_attempt)
     
+    if(response["step_type"] == "hint"):
+        user.points -= 0.5
+    elif(response['step_type'] == 'explanation'):
+        user.points -= 0.5
+    elif(response['step_type'] == 'check_answer'):
+        #this finds if user attempted question
+        attempt = db.query(QuestionAttempt).filter(
+                QuestionAttempt.user_id == user.id,
+                QuestionAttempt.question_id == question.id
+            ).first()
+            
+        if not attempt:
+            attempt = QuestionAttempt(user_id=user.id, question_id=question.id, attempt_count=0)
+            db.add(attempt)
+        
+        attempt.attempt_count += 1
+        is_correct = request.user_attempt.strip().upper() == question.correct_answer.strip().upper()
+        
+        # Only award points if correct on first try
+        if is_correct and attempt.attempt_count == 1:
+            user.points += 2
+            attempt.is_correct = True
+
+    db.commit()
     return StepByStepResponse(**response)
 
 @practice_tutor_router.get("/question-context/{question_id}")
@@ -74,6 +98,10 @@ async def get_question_context(
     question = db.query(SATQuestion).filter(SATQuestion.id == question_id).first()
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
+    
+    # Update user's points
+    user.points -= 0.5
+    db.commit()
     
     return {
         "id": question.id,

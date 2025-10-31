@@ -1,0 +1,154 @@
+.survival-questions-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.survival-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    margin-bottom: 30px;
+}
+
+.lives-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.lives-label {
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.heart {
+    font-size: 24px;
+}
+
+.stats-container {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.difficulty-badge, .section-badge {
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.difficulty-badge {
+    background: #007bff;
+    color: white;
+}
+
+.section-badge {
+    background: #28a745;
+    color: white;
+}
+
+.feedback-section {
+    margin-top: 30px;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.correct-message {
+    background: #d4edda;
+    border: 2px solid #28a745;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.incorrect-message {
+    background: #f8d7da;
+    border: 2px solid #dc3545;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.explanation {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    text-align: left;
+}
+
+.next-button {
+    margin-top: 20px;
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: bold;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.next-button:hover:not(:disabled) {
+    background: #0056b3;
+}
+
+.next-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.game-over-container {
+    max-width: 600px;
+    margin: 100px auto;
+    text-align: center;
+    padding: 40px;
+    background: #f8f9fa;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.final-stats {
+    margin: 30px 0;
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+}
+
+.final-stats p {
+    font-size: 18px;
+    margin: 10px 0;
+}
+
+.play-again-button {
+    padding: 15px 40px;
+    font-size: 18px;
+    font-weight: bold;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.play-again-button:hover {
+    background: #218838;
+}
+
+.loading {
+    text-align: center;
+    padding: 50px;
+    font-size: 20px;
+}
