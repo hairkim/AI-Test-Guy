@@ -157,8 +157,13 @@ export default function HomePage() {
                         ))}
                     </ul>
                 </div>
-                <div className='level'>
-                    <h2>Level Portion I need to work on</h2>
+                <div className='survival_leaderboard'>
+                    <h2>Survival Leaderboard</h2>
+                    <div className='leaderboard'>
+                        <div className='leaderboard_sort_buttons'>
+                            buttons
+                        </div>
+                    </div>
                 </div>
             </div>
 

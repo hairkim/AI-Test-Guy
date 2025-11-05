@@ -1,6 +1,5 @@
 from app.models import UserPerformance, SATQuestion, DailyTask, User
-import datetime
-from datetime import timezone
+from datetime import timezone, datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -114,7 +113,7 @@ def calculate_practice_count(accuracy):
     else:
         return 5   # Decent performance - light practice
 
-def update_user_performance(user_id, question, is_correct, time_spent, db):
+def update_user_performance(user_id, question, is_correct, db):
     """Called after each question attempt"""
     
     # Update or create performance record
@@ -133,19 +132,22 @@ def update_user_performance(user_id, question, is_correct, time_spent, db):
             difficulty=question.difficulty
         )
         db.add(perf)
+        db.flush()
+        db.refresh(perf)
     
-    perf.questions_attempted += 1
+    perf.questions_attempted = perf.questions_attempted + 1
     if is_correct:
-        perf.questions_correct += 1
+        perf.questions_correct = perf.questions_correct + 1
     
-    # Update average time
-    if perf.average_time_seconds:
-        perf.average_time_seconds = (
-            (perf.average_time_seconds * (perf.questions_attempted - 1) + time_spent) 
-            / perf.questions_attempted
-        )
-    else:
-        perf.average_time_seconds = time_spent
+    # Update average time (figure out how to do this)
+    # time_spent = #time_ended - question.time_started
+    # if perf.average_time_seconds:
+    #     perf.average_time_seconds = (
+    #         (perf.average_time_seconds * (perf.questions_attempted - 1) + time_spent) 
+    #         / perf.questions_attempted
+    #     )
+    # else:
+    #     perf.average_time_seconds = time_spent
     
     db.commit()
     
@@ -155,7 +157,7 @@ def update_user_performance(user_id, question, is_correct, time_spent, db):
 def update_daily_task_progress(user_id: str, question: SATQuestion, db: Session):
     """Automatically increment task progress when questions are answered"""
     
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now()
     
     # Get today's tasks that match this question
     tasks = db.query(DailyTask).filter(
@@ -177,7 +179,7 @@ def update_daily_task_progress(user_id: str, question: SATQuestion, db: Session)
         
         if task_matches:
             # Increment progress
-            task.progress_count += 1
+            task.progress_count = task.progress_count + 1
             
             # Check if task is complete
             if task.progress_count >= task.target_count:
