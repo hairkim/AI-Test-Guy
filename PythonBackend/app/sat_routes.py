@@ -10,12 +10,11 @@ from app.sat_route_helpers import (
     generate_section_questions,
     get_difficulty_distribution,
     questions_to_response,
-    get_module_questions,
-    determine_module2_difficulty_points,
-    generate_module2_questions,
     create_mock_exam_sections,
-    get_section_module_questions,
-    calculate_section_score,
+    get_exam_and_sections,
+    score_module,
+    handle_module1_submission,
+    handle_module2_submission,
     QuestionResponse,
     QuestionWithAnswer,
     MockExamRequest,
@@ -268,116 +267,23 @@ def submit_test(
     db: Session = Depends(get_db)
 ):
     """Submit a module for a specific section"""
+    # Validate and get exam data
+    exam, section = get_exam_and_sections(db, request.exam_id, section_type)
     
-    # Get the exam and section
-    exam = db.query(MockExam).filter(MockExam.id == request.exam_id).first()
-    if not exam:
-        raise HTTPException(status_code=404, detail="Exam not found")
+    # Score the module and update performance
+    correct_count, module_results = score_module(
+        db, section, module_number, request.answers, exam.user_id
+    )
     
-    section = next((s for s in exam.sections if s.section_type == section_type), None)
-    if not section:
-        raise HTTPException(status_code=404, detail=f"Section {section_type} not found")
-    
-    # Get questions for this module
-    questions = get_section_module_questions(db, section, module_number)
-    
-    # Score the module
-    correct_count = 0
-    module_results = []
-    
-    for exam_question in questions:
-        user_answer = request.answers.get(exam_question.sat_question_id)
-        sat_question = db.query(SATQuestion).filter_by(id=exam_question.sat_question_id).first()
-        
-        is_correct = user_answer == sat_question.correct_answer
-        exam_question.user_answer = user_answer
-        exam_question.is_correct = is_correct
-        
-        if module_number == 1:
-            module_results.append({
-                'is_correct': is_correct,
-                'difficulty': sat_question.difficulty
-            })
-        
-        if is_correct:
-            correct_count += 1
-
-        update_user_performance(exam.user_id, sat_question, is_correct, request.time_ended, db)
-    
-    # Update section based on module
+    # Handle module-specific logic
     if module_number == 1:
-        section.module1_completed = True
-        section.module1_correct = correct_count
-        
-        # Determine module 2 difficulty
-        difficulty_level = determine_module2_difficulty_points(module_results)
-        section.module2_difficulty_assigned = difficulty_level
-        
-        # Generate module 2 questions
-        module2_questions = generate_module2_questions(db, section, difficulty_level)
-        section.module2_questions = [q.id for q in module2_questions]
-        section.module2_total = len(module2_questions)
-        
-        # Create module 2 question associations
-        for i, question in enumerate(module2_questions):
-            mock_exam_question = MockExamQuestion(
-                section_id=section.id,
-                sat_question_id=question.id,
-                module_number=2,
-                question_order=i + 1
-            )
-            db.add(mock_exam_question)
-        
-        db.commit()
-        
-        return {
-            "section_type": section_type,
-            "module": module_number,
-            "correct": correct_count,
-            "total": len(questions),
-            "percentage": (correct_count / len(questions)) * 100,
-            "module2_difficulty": difficulty_level,
-            "module2_questions": questions_to_response(module2_questions, include_answers=True),
-            "message": f"Module 1 complete. Module 2 will be {'more challenging' if difficulty_level == 'higher' else 'easier'}."
-        }
-    
-    elif module_number == 2:
-        section.module2_completed = True
-        section.module2_correct = correct_count
-        section.total_correct = section.module1_correct + section.module2_correct
-        
-        # Calculate section score
-        section.section_score = calculate_section_score(section)
-        
-        # Mark completion time
-        if request.time_ended:
-            section.completed_at = datetime.fromisoformat(request.time_ended.replace('Z', '+00:00'))
-
-        db.flush()
-        
-        # Check if entire exam is complete
-        if exam.is_completed:
-            exam.completed_at = datetime.utcnow()
-            if exam.exam_type == "full_exam":
-                # Calculate combined SAT score
-                math_score = exam.math_section.section_score if exam.math_section else 0
-                english_score = exam.english_section.section_score if exam.english_section else 0
-                exam.total_score = math_score + english_score
-            else:
-                exam.total_score = section.section_score
-        
-        db.commit()
-        
-        return {
-            "section_type": section_type,
-            "module": module_number,
-            "section_score": section.section_score,
-            "total_correct": section.total_correct,
-            "total_questions": section.total_questions,
-            "percentage": section.percentage_correct,
-            "exam_completed": exam.is_completed,
-            "total_exam_score": exam.total_score if exam.is_completed else None
-        }
+        return handle_module1_submission(
+            db, section, section_type, correct_count, module_results
+        )
+    else:  # module_number == 2
+        return handle_module2_submission(
+            db, exam, section, section_type, correct_count, request.time_ended
+        )
 
 @sat_router.get("/mock-exam/section/{section_type}/module/{module_number}")
 def get_section_module_questions_api(

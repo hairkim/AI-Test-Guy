@@ -1,13 +1,31 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import PropTypes from 'prop-types'
 import '../CSS/BreakTimer.css'
 
-export default function IntermissionTimer({ timeRemaining, onIntermissionEnd, currentSectionType }) {
+export default function IntermissionTimer({ timeLimit, onIntermissionEnd, currentSectionType, isLoading }) {
+    const [timeRemaining, setTimeRemaining] = useState(timeLimit)
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60)
         const secs = seconds % 60
         return `${mins}:${secs.toString().padStart(2, '0')}`
     }
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setTimeRemaining(prev => {
+                if (prev <= 1) {
+                    clearInterval(timer)
+                    onIntermissionEnd()
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        return () => {
+            clearInterval(timer)
+        }
+    }, [onIntermissionEnd])
 
     return (
         <div className="break-timer">
@@ -21,13 +39,14 @@ export default function IntermissionTimer({ timeRemaining, onIntermissionEnd, cu
             <div className="timer-display">
                 <p>Time Remaining: {formatTime(timeRemaining)}</p>
             </div>
-            <button onClick={onIntermissionEnd}>Skip Intermission</button>
+            <button onClick={onIntermissionEnd} disabled={isLoading}>Skip Intermission</button>
         </div>
     )
 }
 
 IntermissionTimer.propTypes = {
-    timeRemaining: PropTypes.number.isRequired,
+    timeLimit: PropTypes.number.isRequired,
     onIntermissionEnd: PropTypes.func.isRequired,
-    currentSectionType: PropTypes.string.isRequired
+    currentSectionType: PropTypes.string.isRequired,
+    isLoading: PropTypes.bool.isRequired
 }

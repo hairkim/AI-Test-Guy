@@ -71,6 +71,7 @@ export default function FullExamPage() {
                     setEnglishTimer(data.eng_module_time_limit)
                     setBreakTimer(data.break_time_limit * 60)
                     setSections(data.sections)
+                    console.log(data.sections)
                 } else {
                     console.error("Failed to generate exam")
                     setTestState("error")
@@ -88,7 +89,163 @@ export default function FullExamPage() {
         }
     }
 
-    const handleAnswerSelect = (questionId, answer) => {
+
+    //logic for submitting in full exam:
+    //if english module 1, load english module 2 questions and finish english portion
+    //if english module2 complete, give user break time
+    //if english module 2 complete, load math module 1 questions
+    //if math module 1 complete, load math module 2 questions
+    //if math module 2 complete, submit exam
+    const submitTest = async() => {
+        if (!examId) {
+            console.error("No exam ID found")
+            return
+        }
+        setIsLoading(true)
+    
+        console.log("submitting test for:", currentSectionType, "module:", module)
+    
+        const requestBody = {
+            exam_id: examId,
+            answers: userAnswer,
+            module: module
+        };
+        
+        setQuestions([])
+        // Add end time only for module 2
+        if (module === 2) {
+            requestBody.time_ended = new Date().toISOString();
+            if(currentSectionType === 'English') {
+                //this will take it to intermission timer immediately after finish
+                setTestState("break")
+            }
+        } else if (module === 1) {
+            // Set appropriate state for module 2
+            if (currentSectionType === 'English') {
+                setTestState("english1_done")
+            } else if (currentSectionType === 'Math') {
+                setTestState("math1_done")
+            }
+        }
+        
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/sat/submit_test/${currentSectionType}/${module}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify(requestBody)
+            })
+    
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+    
+            const data = await response.json()
+            console.log("Submit response:", data)
+    
+            // Handle module progression
+            if (module === 1) {
+                // Module 1 completed - load module 2 for same section
+                console.log("submit test for module 1 of section")
+                setQuestions(data.module2_questions)
+                setModule(2)
+                setCurrentIndex(0)
+                setUserAnswer({})
+                
+            } else if (module === 2) {
+                // Module 2 completed - check if there are more sections
+                console.log("submit test for module 2 of section")
+                setUserAnswer({})
+                setScore(data.section_score)
+                setPercentage(data.percentage)
+                setCompletedSections([...completedSections, currentSectionType])
+
+                const nextSectionIndex = sectionIndex + 1
+                
+                if (nextSectionIndex < sections.length) {
+                    // Move to next section
+                    const nextSectionType = sections[nextSectionIndex]
+                    
+                    if (currentSectionType === 'English' && nextSectionType === 'Math') {
+                        // Finished English, take a break before Math
+                        console.log("English to Math")
+                        setModule(1)
+                        setSectionIndex(nextSectionIndex)
+                        setCurrentSectionType(nextSectionType)
+                        
+                        //load the next math section
+                        await loadNextSection("Math", nextSectionIndex, 1)
+                    } else {
+                        // This shouldn't happen in your flow but good to handle
+                        await loadNextSection(nextSectionType, nextSectionIndex, 1)
+                    }
+                } else {
+                    // All sections completed
+                    setTestState("completed")
+                    // data should contain total_exam_score for full exam
+                    if (data.total_exam_score) {
+                        console.log("sending total score: ", data.total_exam_score)
+                        setScore(data.total_exam_score)
+                    }
+                }
+            }
+    
+        } catch (error) {
+            console.error("Error submitting test:", error)
+            setTestState("error")
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const loadNextSection = async (sectionType, sectionIndex, moduleNumber) => {
+        try {
+            // Call API to get questions for the next section's module 1
+            const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/section/${sectionType}/module/${moduleNumber}`, {
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'X-Exam-ID': examId,
+                    'Content-Type': 'application/json'
+                }
+            })
+            
+            if (response.ok) {
+                const data = await response.json()
+                setQuestions(data.questions)
+                setCurrentSectionType(sectionType)
+                setSectionIndex(sectionIndex)
+                setModule(1)
+                setCurrentIndex(0)
+                setUserAnswer({})
+            } else {
+                throw new Error("Failed to load next section")
+            }
+        } catch (error) {
+            console.error("Error loading next section:", error)
+            setTestState("error")
+        }
+    }
+
+    const handleBreakEnd = () => {
+        setBreakTimer(10 * 60)
+        console.log(questions)
+        if(questions.length > 0) { 
+            setTestState("math1")
+        }
+    }
+
+    const handleIntermissionEnd = () => {
+        setIntermissionTimer(1 * 60) // Reset for next time
+        if(currentSectionType === 'Math' && questions.length > 0) {
+            setTestState("math2")
+        } else if (currentSectionType === 'English' && questions.length > 0) {
+            setTestState("english2")
+        }
+    }
+
+        const handleAnswerSelect = (questionId, answer) => {
         setUserAnswer((prev) => ({
             ...prev,
             [questionId]: answer
@@ -119,202 +276,6 @@ export default function FullExamPage() {
         alert("Time is up! submitting current module")
         submitTest()
     }
-
-
-    //logic for submitting in full exam:
-    //if english module 1, load english module 2 questions and finish english portion
-    //if english module2 complete, give user break time
-    //if english module 2 complete, load math module 1 questions
-    //if math module 1 complete, load math module 2 questions
-    //if math module 2 complete, submit exam
-    const submitTest = async() => {
-        if (!examId) {
-            console.error("No exam ID found")
-            return
-        }
-        setIsLoading(true)
-    
-        console.log("submitting test for:", currentSectionType, "module:", module)
-    
-        const requestBody = {
-            exam_id: examId,
-            answers: userAnswer,
-            module: module
-        };
-        
-        // Add end time only for module 2
-        if (module === 2) {
-            requestBody.time_ended = new Date().toISOString();
-        } else if (module === 1) {
-            // Set appropriate state for module 2
-            if (currentSectionType === 'English') {
-                setTestState("english1_done")
-            } else if (currentSectionType === 'Math') {
-                setTestState("math1_done")
-            }
-        }
-        
-        try {
-            const response = await fetch(`${BACKEND_URL}/api/sat/submit_test/${currentSectionType}/${module}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify(requestBody)
-            })
-    
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-    
-            const data = await response.json()
-            console.log("Submit response:", data)
-    
-            // Handle module progression
-            if (module === 1) {
-                // Module 1 completed - load module 2 for same section
-                setQuestions(data.module2_questions)
-                setModule(2)
-                setCurrentIndex(0)
-                setUserAnswer({})
-                
-            } else if (module === 2) {
-                // Module 2 completed - check if there are more sections
-                setUserAnswer({})
-                setScore(data.section_score)
-                setPercentage(data.percentage)
-                setCompletedSections([...completedSections, currentSectionType])
-                
-                // Check if this is a full exam and there are more sections
-                if (examType === 'full_exam') {
-                    const nextSectionIndex = sectionIndex + 1
-                    
-                    if (nextSectionIndex < sections.length) {
-                        // Move to next section
-                        const nextSectionType = sections[nextSectionIndex]
-                        
-                        if (currentSectionType === 'English' && nextSectionType === 'Math') {
-                            // Finished English, take a break before Math
-                            setTestState("break")
-                            setModule(1)
-                            setSectionIndex(nextSectionIndex)
-                            setCurrentSectionType(nextSectionType)
-                        } else {
-                            // This shouldn't happen in your flow but good to handle
-                            await loadNextSection(nextSectionType, nextSectionIndex)
-                        }
-                    } else {
-                        // All sections completed
-                        setTestState("completed")
-                        // data should contain total_exam_score for full exam
-                        if (data.total_exam_score) {
-                            console.log("sending total score: ", data.total_exam_score)
-                            setScore(data.total_exam_score)
-                        }
-                    }
-                } else {
-                    // Single section exam completed
-                    setTestState("completed")
-                }
-            }
-    
-        } catch (error) {
-            console.error("Error submitting test:", error)
-            setTestState("error")
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
-    const loadNextSection = async (sectionType, sectionIndex) => {
-        try {
-            setIsLoading(true)
-            
-            // Call API to get questions for the next section's module 1
-            const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/section/${sectionType}/module/${module}`, {
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`,
-                    'X-Exam-ID': examId,
-                    'Content-Type': 'application/json'
-                }
-            })
-            
-            if (response.ok) {
-                const data = await response.json()
-                setQuestions(data.questions)
-                setCurrentSectionType(sectionType)
-                setSectionIndex(sectionIndex)
-                setModule(1)
-                setCurrentIndex(0)
-                setUserAnswer({})
-                
-                // Set appropriate test state
-                if (sectionType === 'Math') {
-                    setTestState("math1")
-                } else if (sectionType === 'English') {
-                    setTestState("english1")
-                }
-            } else {
-                throw new Error("Failed to load next section")
-            }
-        } catch (error) {
-            console.error("Error loading next section:", error)
-            setTestState("error")
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
-    const startMathSection = () => {
-        loadNextSection('Math', sectionIndex)
-    }
-
-    const handleBreakEnd = () => {
-        setBreakTimer(10 * 60) // Reset for next time
-        startMathSection()
-    }
-
-    const handleIntermissionEnd = () => {
-        setIntermissionTimer(1 * 60) // Reset for next time
-        if(currentSectionType === 'Math') {
-            setTestState("math2")
-        } else if (currentSectionType === 'English') {
-            setTestState("english2")
-        }
-    }
-
-    useEffect(() => {
-        if (testState === 'break' && breakTimer > 0) {
-            const timer = setInterval(() => {
-                setBreakTimer(prev => {
-                    if (prev <= 1) {
-                        handleBreakEnd()
-                        return 0
-                    }
-                    return prev - 1
-                })
-            }, 1000)
-    
-            return () => clearInterval(timer)
-        }
-    }, [testState, breakTimer])
-
-    useEffect(() => {
-        if ((testState === 'english1_done' || testState === 'math1_done') && intermissionTimer > 0) {
-            const timer = setInterval(() => {
-                setIntermissionTimer(prev => {
-                    if (prev <= 1) {
-                        handleIntermissionEnd()
-                        return 0
-                    }
-                    return prev - 1
-                })
-            }, 1000)
-    
-            return () => clearInterval(timer)
-        }
-    }, [testState, intermissionTimer])
 
 
     return (
@@ -382,12 +343,14 @@ export default function FullExamPage() {
             {testState === 'break' && (
                 <div className='full_test_break_container'>
                     <BreakTimer 
-                        timeRemaining={breakTimer}
+                        timeLimit={breakTimer}
                         onBreakEnd={handleBreakEnd}
+                        isLoading={isLoading}
                     />
                 </div>
             )}
             {testState === 'completed' && (
+                //TODO: make this into a component 
                 <div className='full_test_completed_container'>
                     <h2>Test Completed</h2>
                     <p>Thank you for taking the test</p>
@@ -399,9 +362,10 @@ export default function FullExamPage() {
             {(testState === 'english1_done' || testState === 'math1_done') && (
                 <div className='full_test_intermission_container'>
                     <IntermissionTimer
-                        timeRemaining={intermissionTimer}
+                        timeLimit={intermissionTimer}
                         onIntermissionEnd={handleIntermissionEnd}
                         currentSectionType={currentSectionType}
+                        isLoading={isLoading}
                     />
                 </div>
             )}

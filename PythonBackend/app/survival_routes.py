@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.survival_models import SurvivalSession
-from app.models import SATQuestion
+from app.models import SATQuestion, User
 from sqlalchemy import func
 from typing import Optional
 from app.sat_route_helpers import QuestionResponse
@@ -94,7 +94,7 @@ def save_survival_session(
         questions_correct=request.questions_correct,
         question_ids=request.question_ids,
         answers=request.answers,
-        ended_at=datetime.utcnow()
+        ended_at=datetime.now()
     )
     
     db.add(session)
@@ -157,3 +157,28 @@ def get_user_survival_stats(
             for s in sessions[:10]  # Last 10 sessions
         ]
     }
+
+@survival_router.get("/leaderboard")
+def get_survival_leaderboard(
+    difficulty: Optional[str] = Query(None),
+    section: Optional[str] = Query(None),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Get leaderboard - Database does the sorting, not the application"""
+    
+    query = db.query(SurvivalSession).join(User)
+    
+    if difficulty:
+        query = query.filter(SurvivalSession.difficulty == difficulty)
+    
+    if section:
+        query = query.filter(SurvivalSession.section == section)
+    
+    # ✅ Database sorts and limits - only retrieves top N records
+    sessions = query.order_by(
+        SurvivalSession.questions_correct.desc(),
+        SurvivalSession.questions_answered.asc()
+    ).limit(limit).all()  # Only gets 10-100 records, not millions!
+    
+    return {"leaderboard": sessions}

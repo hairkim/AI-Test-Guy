@@ -65,14 +65,6 @@ export default function SurvivalQuestion({
                         onClick={() => onChoiceClick(key)}
                         style={{ cursor: showFeedback ? 'not-allowed' : 'pointer' }}
                     >
-                        <div className="bubble">
-                            <div className="bubble-inner">
-                                {(selectedAnswer === key && !showFeedback) && (
-                                    <div className="bubble-fill" />
-                                )}
-                            </div>
-                            <span className="choice-letter">{key}</span>
-                        </div>
                         <span className="choice-text">{parseText(value)}</span>
                     </div>
                 ))}

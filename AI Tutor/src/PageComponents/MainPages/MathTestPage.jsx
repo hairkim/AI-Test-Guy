@@ -4,6 +4,7 @@ import { useAuth } from '../../ClientStuff/AuthContext.jsx';
 import { useParams } from 'react-router-dom'
 import SatQuestion from '../SupportingComponents/SatQuestion.jsx'
 import ExamTimer from '../SupportingComponents/ExamTimer.jsx'
+import IntermissionTimer from '../SupportingComponents/IntermissionTimer.jsx'
 
 export default function MathTestPage() {
     const { examType } = useParams()
@@ -19,6 +20,7 @@ export default function MathTestPage() {
     const [percentage, setPercentage] = useState(null)
     const [timer, setTimer] = useState(0)
     const [timerWarning, setTimerWarning] = useState('')
+    const [intermissionTimeLimit, setIntermissionTimeLimit] = useState(60)
 
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
@@ -99,6 +101,10 @@ export default function MathTestPage() {
         setCurrentIndex(currentIndex - 1)
     }
 
+    const onIntermissionEnd = () => {
+        setTestState('math2')
+    }
+
     const submitTest = async() => {
         if (!examId) {
             console.error("No exam ID found")
@@ -107,7 +113,7 @@ export default function MathTestPage() {
         setIsLoading(true)
         console.log("submitting test")
         if(module === 1) {
-            setTestState("math1_done")
+            setTestState("break")
         } else {
             setTestState("completed")
         }
@@ -224,11 +230,13 @@ export default function MathTestPage() {
                     </div>
                 </div>
             )}
-            {testState === 'math1_done' && (
-                <div className='math_results_container'>
-                    <h2>Module 1 Completed</h2>
-                    <button onClick={() => setTestState('math2')} disabled={isLoading}>Start Module 2</button>
-                </div>
+            {testState === 'break' && (
+                <IntermissionTimer
+                    timeLimit={intermissionTimeLimit}
+                    onIntermissionEnd={onIntermissionEnd}
+                    currentSectionType="Math"
+                    isLoading={isLoading}
+                />
             )}
             {testState === 'completed' && (
                 <div className='math_results_container'>

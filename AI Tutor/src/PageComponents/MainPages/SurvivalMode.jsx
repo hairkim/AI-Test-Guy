@@ -32,8 +32,10 @@ export default function SurvivalMode() {
             {!section && (
                 <div className='survival_section_container'>
                     <h1>Choose a Section</h1>
-                    <button onClick={() => setSection("Math")}>Math</button>
-                    <button onClick={() => setSection("English")}>English</button>
+                    <div className='survival_section_button_container'>
+                        <button onClick={() => setSection("Math")}>Math</button>
+                        <button onClick={() => setSection("English")}>English</button>
+                    </div>
                 </div>
             )}
             {section && !difficulty && (
@@ -41,11 +43,13 @@ export default function SurvivalMode() {
                     <button onClick={handleBack} className='back-button'>
                         ← Back
                     </button>
-                    <h1>Choose Difficulty</h1>
                     <div className='survival_domain_container'>
-                        <button onClick={() => handleDifficultySelect("Easy")}>Easy</button>
-                        <button onClick={() => handleDifficultySelect("Medium")}>Medium</button>
-                        <button onClick={() => handleDifficultySelect("Hard")}>Hard</button>
+                        <h1>Choose Difficulty</h1>
+                        <div className='survival_section_button_container'>
+                            <button onClick={() => handleDifficultySelect("Easy")}>Easy</button>
+                            <button onClick={() => handleDifficultySelect("Medium")}>Medium</button>
+                            <button onClick={() => handleDifficultySelect("Hard")}>Hard</button>
+                        </div>
                     </div>
                 </div>
             )}

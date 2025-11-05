@@ -1,13 +1,32 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import PropTypes from 'prop-types'
 import '../CSS/BreakTimer.css'
 
-export default function BreakTimer({ timeRemaining, onBreakEnd }) {
+export default function BreakTimer({ timeLimit, onBreakEnd, isLoading }) {
+    const [timeRemaining, setTimeRemaining] = useState(timeLimit)
+
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60)
         const secs = seconds % 60
         return `${mins}:${secs.toString().padStart(2, '0')}`
     }
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setTimeRemaining(prev => {
+                if (prev <= 1) {
+                    clearInterval(timer)
+                    onBreakEnd()
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        return () => {
+            clearInterval(timer)
+        }
+    }, [onBreakEnd])
 
     return (
         <div className="break-timer">
@@ -22,12 +41,13 @@ export default function BreakTimer({ timeRemaining, onBreakEnd }) {
             <div className="timer-display">
                 <p>Time Remaining: {formatTime(timeRemaining)}</p>
             </div>
-            <button onClick={() => onBreakEnd()}>Skip Break</button>
+            <button onClick={() => onBreakEnd()} disabled={isLoading}>Skip Break</button>
         </div>
     )
 }
 
 BreakTimer.propTypes = {
-    timeRemaining: PropTypes.number.isRequired,
-    onBreakEnd: PropTypes.func.isRequired
+    timeLimit: PropTypes.number.isRequired,
+    onBreakEnd: PropTypes.func.isRequired,
+    isLoading: PropTypes.bool.isRequired
 }

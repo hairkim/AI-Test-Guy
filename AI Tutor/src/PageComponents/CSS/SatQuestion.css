@@ -6,7 +6,7 @@
 }
 
 .paragraph {
-    background-color: #f8f9fa;
+    background-color: #f9decc;
     border-left: 4px solid #007bff;
     padding: 16px;
     margin-bottom: 20px;
@@ -37,7 +37,7 @@
     cursor: pointer;
     transition: all 0.2s ease;
     border: 2px solid transparent;
-    background-color: #fff;
+    background-color: #f9decc;
 }
 
 .choice-item:hover {
@@ -132,7 +132,7 @@
     background-color: #28a745;
 }
 
-.choice-item.incorrect .bubble {
+.choice-item.incorrect .bubble-fill {
     background-color: #dc3545;
 }
 
