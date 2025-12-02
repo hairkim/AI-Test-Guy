@@ -21,6 +21,7 @@ export default function SurvivalModeQuestions() {
     const [showFeedback, setShowFeedback] = useState(false)
     const [loading, setLoading] = useState(false)
     const [gameOver, setGameOver] = useState(false)
+    const [startingTime, setStartingTime] = useState(null)
     
     // Stats for saving session
     const [questionsAnswered, setQuestionsAnswered] = useState(0)
@@ -35,9 +36,14 @@ export default function SurvivalModeQuestions() {
             navigate('/survival', { replace: true })
             return
         }
+        startSurvivalMode()
         // Load first question
         fetchQuestion()
     }, [])
+
+    const startSurvivalMode = () => {
+        setStartingTime(new Date().toISOString())
+    }
 
     const fetchQuestion = async () => {
         if (gameOver) return
@@ -135,7 +141,8 @@ export default function SurvivalModeQuestions() {
                     questions_answered: questionsAnswered,
                     questions_correct: questionsCorrect,
                     question_ids: excludedQuestionIds,
-                    answers: answers
+                    answers: answers,
+                    start_time: startingTime
                 })
             })
 

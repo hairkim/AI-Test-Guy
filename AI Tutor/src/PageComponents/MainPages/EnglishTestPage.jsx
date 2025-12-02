@@ -20,7 +20,9 @@ export default function EnglishTestPage() {
     const [percentage, setPercentage] = useState(null)
     const [timer, setTimer] = useState(0)
     const [timerWarning, setTimerWarning] = useState('')
-    const [intermissionTimeLimit, setIntermissionTimeLimit] = useState(60)
+
+    //intermission time limit
+    const intermissionTimeLimit = 60
 
     const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 

@@ -105,7 +105,7 @@ def generate_mock_exam(
     mock_exam = MockExam(
         exam_type=request.exam_type,
         user_id=request.user_id,
-        started_at=datetime.fromisoformat(request.started_at.replace('Z', '+00:00')) if request.started_at else datetime.utcnow(),
+        started_at=datetime.now(timezone.utc),
         config={"difficulty_mix": request.difficulty_mix}
     )
     db.add(mock_exam)
