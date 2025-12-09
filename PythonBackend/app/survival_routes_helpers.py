@@ -4,6 +4,7 @@ from typing import List, Optional, Dict
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
+from datetime import datetime
 
 class SurvivalQuestionRequest(BaseModel):
     difficulty: str
@@ -25,6 +26,7 @@ class SaveSurvivalSessionRequest(BaseModel):
     questions_correct: int
     question_ids: List[str]
     answers: List[Dict]  # [{"question_id": "...", "user_answer": "A", "is_correct": true}, ...]
+    start_time: datetime
 
 
 def get_random_question_excluding(

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from .database import get_db
 from .models import User
-import datetime
+from datetime import datetime, timezone
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -23,7 +23,7 @@ class UserSyncRequest(BaseModel):
     name: str
     email: str
     picture_url: str = None
-    created_at: datetime.datetime
+    created_at: datetime
 
 def get_current_user(token: str = Depends(security)):
     try:

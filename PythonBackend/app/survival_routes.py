@@ -13,7 +13,7 @@ from app.survival_routes_helpers import (
     SurvivalQuestionRequest
 )
 from app.auth import get_current_user, get_current_user_db
-from datetime import datetime
+from datetime import datetime, timezone
 
 survival_router = APIRouter(prefix="/api/survival", tags=["Survival Questions API"])
 
@@ -94,7 +94,8 @@ def save_survival_session(
         questions_correct=request.questions_correct,
         question_ids=request.question_ids,
         answers=request.answers,
-        ended_at=datetime.now()
+        started_at=request.start_time,
+        ended_at=datetime.now(timezone.utc)
     )
     
     db.add(session)
@@ -160,25 +161,58 @@ def get_user_survival_stats(
 
 @survival_router.get("/leaderboard")
 def get_survival_leaderboard(
-    difficulty: Optional[str] = Query(None),
-    section: Optional[str] = Query(None),
+    difficulty: str,
+    section: str,
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
-    """Get leaderboard - Database does the sorting, not the application"""
+    """
+    Get leaderboard showing each user's BEST session only.
+    One entry per user, ranked by their highest questions_correct.
+    """
     
-    query = db.query(SurvivalSession).join(User)
+    # Subquery: Get each user's best score for this difficulty/section
+    best_scores = db.query(
+        SurvivalSession.user_id,
+        func.max(SurvivalSession.questions_correct).label('max_correct')
+    ).filter(
+        SurvivalSession.difficulty == difficulty,
+        SurvivalSession.section == section
+    ).group_by(
+        SurvivalSession.user_id
+    ).subquery()
     
-    if difficulty:
-        query = query.filter(SurvivalSession.difficulty == difficulty)
-    
-    if section:
-        query = query.filter(SurvivalSession.section == section)
-    
-    # ✅ Database sorts and limits - only retrieves top N records
-    sessions = query.order_by(
+    # Main query: Get the full session details for those best scores
+    leaderboard = db.query(
+        SurvivalSession,
+        User
+    ).join(
+        User, SurvivalSession.user_id == User.id
+    ).join(
+        best_scores,
+        (SurvivalSession.user_id == best_scores.c.user_id) &
+        (SurvivalSession.questions_correct == best_scores.c.max_correct)
+    ).filter(
+        SurvivalSession.difficulty == difficulty,
+        SurvivalSession.section == section
+    ).order_by(
         SurvivalSession.questions_correct.desc(),
-        SurvivalSession.questions_answered.asc()
-    ).limit(limit).all()  # Only gets 10-100 records, not millions!
+        SurvivalSession.questions_answered.asc(),
+        SurvivalSession.ended_at.asc()  # If still tied, earliest wins
+    ).limit(limit).all()
     
-    return {"leaderboard": sessions}
+    return {
+        "leaderboard": [
+            {
+                "rank": i + 1,
+                "user_id": session.user_id,
+                "user_name": user.name,
+                "questions_correct": session.questions_correct,
+                "questions_answered": session.questions_answered,
+                "difficulty": session.difficulty,
+                "section": session.section,
+                "date": session.ended_at.strftime("%Y-%m-%d") if session.ended_at else None
+            }
+            for i, (session, user) in enumerate(leaderboard)
+        ]
+    }

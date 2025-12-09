@@ -5,6 +5,7 @@ import '../CSS/HomePage.css'
 import { useAuth } from '../../ClientStuff/AuthContext.jsx'
 import ScoreCircle from '../SupportingComponents/ExamCircle.jsx'
 import SchoolScroller from '../SupportingComponents/SchoolScroller.jsx'
+import SurvivalLeaderboard from '../SupportingComponents/Leaderboard.jsx'
 import { useProtectedNavigation } from '../../ClientStuff/UserProtectedNav.js'
 
 export default function HomePage() {
@@ -120,57 +121,46 @@ export default function HomePage() {
     }
 
     return (
-        <div className="home-page">
-            {/* Div for entire header (will be flexbox) */}
-            <div className='header-component'>
-                <div className='left-side'>
-                    <div className='top'>
-                        <h1>Welcome {user?.user_metadata?.display_name}</h1>
+        <div className='home-page'>
+            <div className='home-left-side'>
+                <div className='top'>
+                    <h1>Welcome {user?.user_metadata?.display_name}</h1>
+                </div>
+                <div className='bottom'>
+                    {pages.map((page, index) => (
+                        <button key={index} onClick={() => pageRoute(page)}>{page}</button>
+                    ))}
+                </div>
+                <div className='exams-tasks'>
+                    <div className='most-recent-exam'>
+                        <h2>Most Recent Exam Score</h2>
+                        {recentExams ? (
+                            <ScoreCircle examType={recentExams.exam_type} score={recentExams.total_score} />
+                        ) : (
+                            <p>No recent exams found</p>
+                        )}
                     </div>
-                    <div className='bottom'>
-                        {pages.map((page, index) => (
-                            <button key={index} onClick={() => pageRoute(page)}>{page}</button>
-                        ))}
+                    <div className='daily-tasks'>
+                        <h2>Daily Tasks</h2>
+                        <ul className='tasks'>
+                            {userTasks && userTasks.map((task, index) => (
+                                // text, completed, onToggleComplete
+                                <TaskComponent key={index} text={task.task_title} completed={task.is_completed} onToggleComplete={() => {}} />
+                            ))}
+                        </ul>
                     </div>
                 </div>
-                <div className='right-side'>
+                <div className='bottom-content'>
+                    <SchoolScroller previousScore={recentExams?.total_score} />
+                </div>
+            </div>
+            <div className='home-right-side'>
+                <div className='survival_leaderboard'>
+                    <SurvivalLeaderboard />
+                </div>
+                <div className='profile-picture'>
                     <ProfilePicture />
                 </div>
-            </div>
-
-            {/* Middle Content (Daily Tasks / Level) */}
-            <div className='middle-content'>
-                <div className='most-recent-exam'>
-                    <h2>Most Recent Exam Score</h2>
-                    {recentExams ? (
-                        <ScoreCircle examType={recentExams.exam_type} score={recentExams.total_score} />
-                    ) : (
-                        <p>No recent exams found</p>
-                    )}
-                </div>
-                <div className='daily-tasks'>
-                    <h2>Daily Tasks</h2>
-                    <ul className='tasks'>
-                        {userTasks && userTasks.map((task, index) => (
-                            // text, completed, onToggleComplete
-                            <TaskComponent key={index} text={task.task_title} completed={task.is_completed} onToggleComplete={() => {}} />
-                        ))}
-                    </ul>
-                </div>
-                <div className='survival_leaderboard'>
-                    <h2>Survival Leaderboard</h2>
-                    <div className='leaderboard'>
-                        <div className='leaderboard_sort_buttons'>
-                            buttons
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Bottom content is for previous exam scores */}
-            <div className='bottom-content'>
-                {/* show schools Safety/Target/Reach */}
-                <SchoolScroller previousScore={recentExams?.total_score} />
             </div>
         </div>
     )

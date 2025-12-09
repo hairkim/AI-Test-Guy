@@ -1,5 +1,5 @@
 from app.models import UserPerformance, SATQuestion, DailyTask, User
-from datetime import timezone, datetime
+from datetime import timezone, datetime, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -157,7 +157,7 @@ def update_user_performance(user_id, question, is_correct, db):
 def update_daily_task_progress(user_id: str, question: SATQuestion, db: Session):
     """Automatically increment task progress when questions are answered"""
     
-    today = datetime.now()
+    today = datetime.now(timezone.utc).date()
     
     # Get today's tasks that match this question
     tasks = db.query(DailyTask).filter(

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import Dict
 from fastapi import HTTPException
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 # Pydantic models for request/response
@@ -398,13 +398,13 @@ def handle_module2_submission(
     
     # Mark completion time
     if time_ended:
-        section.completed_at = datetime.fromisoformat(time_ended.replace('Z', '+00:00'))
+        section.completed_at = datetime.now(timezone.utc)
     
     db.flush()
     
     # Check if entire exam is complete
     if exam.is_completed:
-        exam.completed_at = datetime.now()
+        exam.completed_at = datetime.now(timezone.utc)
         if exam.exam_type == "full_exam":
             # Calculate combined SAT score
             math_score = exam.math_section.section_score if exam.math_section else 0
