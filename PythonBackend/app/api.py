@@ -1,6 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.models import EnhancedQuery, EnglishQuery
-from app.chain import get_retriever_for_collection
 from openai import OpenAI
 import os
 from functools import lru_cache
@@ -11,7 +10,7 @@ from app.tools import (
 from app.threeagenttutor import ConversationalSATTutor
 from app.english_tutor_agent import ConversationalEnglishSATTutor
 from app.mathtools import create_math_tutor
-from app.english_tools import EnglishTutorTool, TutorResponseAdapter, create_enhanced_tutor
+# from app.english_tools import EnglishTutorTool, TutorResponseAdapter, create_enhanced_tutor
 from langchain.agents import initialize_agent, AgentType
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import OutputParserException
@@ -36,7 +35,7 @@ def get_toolbox():
         "math_tutor":  MathTutorTool(llm=llm_wrapper),  
         "latex_formatter": LaTeXFormatterTool(llm=llm_wrapper),
         "parser": MathResponseParser(),
-        "english_tutor": create_enhanced_tutor(llm_wrapper, enable_ml=True),
+        # "english_tutor": create_enhanced_tutor(llm_wrapper, enable_ml=True),
         "sat_tutor": sat_tutor,
         "sat_english_tutor": ConversationalEnglishSATTutor(llm_wrapper)
     }
