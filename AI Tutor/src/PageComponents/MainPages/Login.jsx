@@ -14,7 +14,7 @@ export default function Login() {
         e.preventDefault();
         setLoading(true);
 
-        console.log(email, password);
+        // console.log(email, password);
     
         const { data, error, action } = await signIn(email, password);
         
