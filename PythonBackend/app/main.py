@@ -28,7 +28,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         frontend_origin,
-        "https://ai-test-9m1lpcfqi-harris-projects-56ddc17a.vercel.app/"
+        "https://ai-test-9m1lpcfqi-harris-projects-56ddc17a.vercel.app"
         ],
     allow_credentials=True,
     allow_methods=["*"],
