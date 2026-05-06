@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap');
+
+.tmc-card {
+    display: flex;
+    flex-direction: column;
+    background: #14171f;
+    border: 1px solid #242836;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    transition: border-color 0.2s, transform 0.2s;
+    font-family: 'Sora', sans-serif;
+}
+
+.tmc-card:hover {
+    border-color: #2d6b58;
+    transform: translateY(-3px);
+}
+
+/* Image placeholder area */
+.tmc-image {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, #1c2030 0%, #0d0f14 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid #242836;
+}
+
+.tmc-icon {
+    font-size: 56px;
+    opacity: 0.85;
+}
+
+/* Card body */
+.tmc-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+}
+
+.tmc-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f0f2f8;
+    letter-spacing: -0.3px;
+    margin: 0;
+}
+
+.tmc-description {
+    font-size: 13px;
+    color: #8890aa;
+    line-height: 1.5;
+    margin: 0;
+    flex: 1;
+}
+
+.tmc-start-btn {
+    align-self: flex-start;
+    margin-top: 8px;
+    padding: 9px 28px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Sora', sans-serif;
+    color: #0d0f14;
+    background: #6ee7b7;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+}
+
+.tmc-start-btn:hover {
+    background: #a7f3d0;
+}
+
+.tmc-start-btn:active {
+    opacity: 0.8;
+}

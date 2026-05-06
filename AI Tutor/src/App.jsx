@@ -16,6 +16,9 @@ import ExamRouter from './PageComponents/MiscComponents/ExamRouter.jsx'
 import SchoolScroller from './PageComponents/SupportingComponents/SchoolScroller.jsx'
 import SurvivalMode from './PageComponents/MainPages/SurvivalMode.jsx'
 import SurvivalModeQuestions from './PageComponents/MainPages/SurvivalModeQuestions.jsx'
+import DashboardLayout from './PageComponents/MainPages/DashboardLayout.jsx'
+
+import HomePageTest from './PageComponents/MainPages/HomePageTest.jsx'
 import { AuthProvider } from './ClientStuff/AuthContext.jsx'
 // import PlaceholderPage from './PlaceholderPage';
 
@@ -25,21 +28,24 @@ const App = () => {
     <Router>
       <AuthProvider>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path='/signup' element={<Signup />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/train" element={<TrainModel />} /> {/* this is TrainModel page */}
-        <Route path="/take_a_test" element={<TakeATest />} />
-        <Route path="/test/:examType" element={<ExamRouter /> } />
-        <Route path="/exam_history" element={<ExamHistory /> } />
-        <Route path="/practice" element={<MainPracticePage/> } />
-        <Route path="/practice-questions" element={<PracticeQuestions/> } />
-        <Route path="/query" element={<QuestionsPage/> } />
-        <Route path="/english" element={<EnglishPage/> } />
-        <Route path='/placeholder' element={<SchoolScroller/> } />
-        <Route path="/survival" element={<SurvivalMode/> } />
-        <Route path='/survival/questions' element={<SurvivalModeQuestions/> } />
+        <Route path="/" element={<DashboardLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path='/signup' element={<Signup />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/train" element={<TrainModel />} /> {/* this is TrainModel page */}
+          <Route path="/take_a_test" element={<TakeATest />} />
+          <Route path="/test/:examType" element={<ExamRouter /> } />
+          <Route path="/exam_history" element={<ExamHistory /> } />
+          <Route path="/practice" element={<MainPracticePage/> } />
+          <Route path="/practice-questions" element={<PracticeQuestions/> } />
+          <Route path="/query" element={<QuestionsPage/> } />
+          <Route path="/english" element={<EnglishPage/> } />
+          <Route path='/placeholder' element={<SchoolScroller/> } />
+          <Route path="/survival" element={<SurvivalMode/> } />
+          <Route path='/survival/questions' element={<SurvivalModeQuestions/> } />
+          <Route path='/home' element={ <HomePageTest /> }/>
+        </Route>
       </Routes>
       </AuthProvider>
     </Router>

@@ -5,7 +5,9 @@ import SatQuestion from '../SupportingComponents/SatQuestion.jsx'
 import ExamTimer from '../SupportingComponents/ExamTimer.jsx'
 import BreakTimer from '../SupportingComponents/BreakTimer.jsx'
 import IntermissionTimer from '../SupportingComponents/IntermissionTimer.jsx'
+import PracticeExamLanding from './PracticeExamLanding.jsx'
 import '../CSS/FullExamPage.css'
+import { generateMockExam, getExamSectionModule, submitTestModule } from '../../services/satService.js'
 
 export default function FullExamPage() {
     const { examType } = useParams()
@@ -29,10 +31,6 @@ export default function FullExamPage() {
     const [sectionIndex, setSectionIndex] = useState(0)
     const [completedSections, setCompletedSections] = useState([])
     const [intermissionTimer, setIntermissionTimer] = useState(1 * 60)
-
-    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
-
-
     //start with english modules first then go onto math modules
     const startTest = async () => {
         setIsLoading(true)
@@ -45,38 +43,24 @@ export default function FullExamPage() {
             return
         } else {
             try {
-                const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/generate`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${session.access_token}`,
-                    },
-                    body: JSON.stringify({
-                        exam_type: examType,
-                        user_id: user.id,
-                        started_at: new Date().toISOString()
-                    })
+                const data = await generateMockExam({
+                    examType,
+                    userId: user.id,
+                    token: session.access_token,
                 })
-                if (response.ok) {
-                    const data = await response.json()
-                    console.log(data.questions)
-                    setExamId(data.exam_id)
-                    setQuestions(data.questions)
-                    setModule(data.module)
-                    setCurrentIndex(0)
-                    setSectionIndex(0)
-                    setCurrentSectionType(data.section_type)
-                    setCompletedSections([])
-                    setMathTimer(data.math_module_time_limit)
-                    setEnglishTimer(data.eng_module_time_limit)
-                    setBreakTimer(data.break_time_limit * 60)
-                    setSections(data.sections)
-                    console.log(data.sections)
-                } else {
-                    console.error("Failed to generate exam")
-                    setTestState("error")
-                    setIsLoading(false)
-                }
+                console.log(data.questions)
+                setExamId(data.exam_id)
+                setQuestions(data.questions)
+                setModule(data.module)
+                setCurrentIndex(0)
+                setSectionIndex(0)
+                setCurrentSectionType(data.section_type)
+                setCompletedSections([])
+                setMathTimer(data.math_module_time_limit)
+                setEnglishTimer(data.eng_module_time_limit)
+                setBreakTimer(data.break_time_limit * 60)
+                setSections(data.sections)
+                console.log(data.sections)
             } catch (error) {
                 console.error("Error generating exam:", error)
                 setTestState("error")
@@ -105,16 +89,11 @@ export default function FullExamPage() {
     
         console.log("submitting test for:", currentSectionType, "module:", module)
     
-        const requestBody = {
-            exam_id: examId,
-            answers: userAnswer,
-            module: module
-        };
-        
+        let timeEnded = null;
         setQuestions([])
         // Add end time only for module 2
         if (module === 2) {
-            requestBody.time_ended = new Date().toISOString();
+            timeEnded = new Date().toISOString();
             if(currentSectionType === 'English') {
                 //this will take it to intermission timer immediately after finish
                 setTestState("break")
@@ -129,20 +108,15 @@ export default function FullExamPage() {
         }
         
         try {
-            const response = await fetch(`${BACKEND_URL}/api/sat/submit_test/${currentSectionType}/${module}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify(requestBody)
+            const data = await submitTestModule({
+                sectionType: currentSectionType,
+                module,
+                examId,
+                answers: userAnswer,
+                timeEnded,
+                token: session.access_token,
             })
-    
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-    
-            const data = await response.json()
+
             console.log("Submit response:", data)
     
             // Handle module progression
@@ -203,25 +177,19 @@ export default function FullExamPage() {
     const loadNextSection = async (sectionType, sectionIndex, moduleNumber) => {
         try {
             // Call API to get questions for the next section's module 1
-            const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/section/${sectionType}/module/${moduleNumber}`, {
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`,
-                    'X-Exam-ID': examId,
-                    'Content-Type': 'application/json'
-                }
+            const data = await getExamSectionModule({
+                sectionType,
+                moduleNumber,
+                examId,
+                token: session.access_token,
             })
-            
-            if (response.ok) {
-                const data = await response.json()
-                setQuestions(data.questions)
-                setCurrentSectionType(sectionType)
-                setSectionIndex(sectionIndex)
-                setModule(1)
-                setCurrentIndex(0)
-                setUserAnswer({})
-            } else {
-                throw new Error("Failed to load next section")
-            }
+
+            setQuestions(data.questions)
+            setCurrentSectionType(sectionType)
+            setSectionIndex(sectionIndex)
+            setModule(1)
+            setCurrentIndex(0)
+            setUserAnswer({})
         } catch (error) {
             console.error("Error loading next section:", error)
             setTestState("error")
@@ -281,20 +249,21 @@ export default function FullExamPage() {
     return (
         <div className='full_exam_main_container'>
             {testState === 'idle' && (
-             <div className="full_idle_container">
-                    <div className='full_idle_text'>
-                        <h2>You are about to take a full SAT Practice Exam</h2>
-                        <p>The test includes 2 modules, each with 22 questions</p>
-                        <p>The English section will have 27 questions each module</p>
-                        <p>The Math section will have 22 questions each module</p>
-                        <p>You will be given module 2 questions based on previous scoring</p>
-                        <p>There is no penalty for wrong answers</p>
-                        <p>Good luck!</p>
-                    </div>
-                    <div className='full_idle_button'>
-                        <button onClick={startTest} disabled={isLoading}>Start Test</button>
-                    </div>
-                </div>
+            //  <div className="full_idle_container">
+            //         <div className='full_idle_text'>
+            //             <h2>You are about to take a full SAT Practice Exam</h2>
+            //             <p>The test includes 2 modules, each with 22 questions</p>
+            //             <p>The English section will have 27 questions each module</p>
+            //             <p>The Math section will have 22 questions each module</p>
+            //             <p>You will be given module 2 questions based on previous scoring</p>
+            //             <p>There is no penalty for wrong answers</p>
+            //             <p>Good luck!</p>
+            //         </div>
+            //         <div className='full_idle_button'>
+            //             <button onClick={startTest} disabled={isLoading}>Start Test</button>
+            //         </div>
+            //     </div>
+            <PracticeExamLanding onStart={startTest} isLoading={isLoading} />
             )}
             {((testState === 'math1' || testState === 'math2' || testState === 'english1' || testState === 'english2') && questions.length > 0) && (
                 <div className='full_test_container'>

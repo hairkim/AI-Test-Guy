@@ -1,0 +1,319 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── Page wrapper ───────────────────────────────────────── */
+.ht-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 32px 36px;
+  min-height: 100%;
+  font-family: 'Sora', sans-serif;
+  background: #0d0f14;
+  color: #f0f2f8;
+  box-sizing: border-box;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.ht-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.ht-welcome {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  color: #f0f2f8;
+}
+
+.ht-welcome-sub {
+  font-size: 14px;
+  color: #8890aa;
+  margin-top: 4px;
+}
+
+.ht-points-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #14171f;
+  border: 1px solid #242836;
+  padding: 10px 18px;
+  border-radius: 50px;
+}
+
+.ht-points-icon { font-size: 16px; }
+
+.ht-points-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fbbf24;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Content Grid ───────────────────────────────────────── */
+.ht-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 20px;
+  align-items: start;
+}
+
+.ht-center-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ht-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Cards ──────────────────────────────────────────────── */
+.ht-card {
+  background: #14171f;
+  border: 1px solid #242836;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.ht-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.ht-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f0f2f8;
+  letter-spacing: -0.3px;
+}
+
+.ht-card-sub {
+  font-size: 12px;
+  color: #4a5168;
+}
+
+/* ── Score Chart ────────────────────────────────────────── */
+.ht-score-latest {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: #6ee7b7;
+}
+
+.ht-score-delta {
+  font-size: 13px;
+  color: #6ee7b7;
+  opacity: 0.7;
+  margin-left: 6px;
+}
+
+.ht-score-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.ht-chart-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  fill: #4a5168;
+}
+
+/* ── College Slider ─────────────────────────────────────── */
+.ht-college-slider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ht-slider-btn {
+  font-size: 22px;
+  color: #8890aa;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1c2030;
+  border: 1px solid #242836;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.ht-slider-btn:hover:not(:disabled) {
+  color: #f0f2f8;
+  background: #14171f;
+}
+
+.ht-slider-btn:disabled { opacity: 0.3; cursor: default; }
+
+.ht-college-cards {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.ht-college-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid #242836;
+  background: #0d0f14;
+  transition: border-color 0.15s;
+}
+
+.ht-college-card:hover { border-color: #2d6b58; }
+.ht-college-logo { font-size: 22px; }
+
+.ht-college-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f0f2f8;
+}
+
+.ht-college-score {
+  font-size: 11px;
+  color: #4a5168;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.ht-college-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  margin-top: 2px;
+}
+
+.ht-college-tag.tag-match { background: rgba(110, 231, 183, 0.12); color: #6ee7b7; }
+.ht-college-tag.tag-reach { background: rgba(248, 113, 113, 0.12); color: #f87171; }
+
+/* ── Daily Tasks ────────────────────────────────────────── */
+.ht-task-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ht-task-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #242836;
+  cursor: pointer;
+  transition: background 0.12s;
+  font-size: 13px;
+  color: #8890aa;
+}
+
+.ht-task-item:hover { background: #1c2030; }
+.ht-task-item.done { opacity: 0.5; }
+.ht-task-item.done .ht-task-label { text-decoration: line-through; }
+
+.ht-task-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid #242836;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6ee7b7;
+  background: rgba(110, 231, 183, 0.08);
+}
+
+.ht-task-label { flex: 1; }
+
+.ht-tasks-progress {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #4a5168;
+  text-align: right;
+}
+
+/* ── Leaderboard ────────────────────────────────────────── */
+.ht-leader-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ht-leader-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  transition: background 0.12s;
+}
+
+.ht-leader-item:hover { background: #1c2030; }
+
+.ht-leader-item.you {
+  background: rgba(110, 231, 183, 0.08);
+  border: 1px solid #2d6b58;
+}
+
+.ht-leader-rank {
+  width: 28px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #4a5168;
+  flex-shrink: 0;
+}
+
+.ht-leader-item:first-child .ht-leader-rank { color: #fbbf24; }
+.ht-leader-name { flex: 1; color: #8890aa; }
+.ht-leader-item.you .ht-leader-name { color: #6ee7b7; font-weight: 600; }
+
+.ht-leader-pts {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #4a5168;
+}
+
+.ht-leader-item.you .ht-leader-pts { color: #6ee7b7; }
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .ht-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ht-right-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .ht-page { padding: 20px 16px; }
+  .ht-college-cards { grid-template-columns: repeat(2, 1fr); }
+  .ht-right-col { grid-template-columns: 1fr; }
+}
