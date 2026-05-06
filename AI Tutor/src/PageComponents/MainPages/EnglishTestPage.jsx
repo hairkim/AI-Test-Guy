@@ -5,6 +5,7 @@ import { useParams } from 'react-router-dom'
 import SatQuestion from '../SupportingComponents/SatQuestion.jsx'
 import ExamTimer from '../SupportingComponents/ExamTimer.jsx'
 import IntermissionTimer from '../SupportingComponents/IntermissionTimer.jsx'
+import { generateMockExam, submitTestModule } from '../../services/satService.js'
 
 export default function EnglishTestPage() {
     const { examType } = useParams()
@@ -23,9 +24,6 @@ export default function EnglishTestPage() {
 
     //intermission time limit
     const intermissionTimeLimit = 60
-
-    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
-
     const startTest = async () => {
         setIsLoading(true)
         setUserAnswer({})
@@ -35,31 +33,21 @@ export default function EnglishTestPage() {
             return
         }
         try {
-            const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/generate`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                    exam_type: examType,
-                    user_id: user.id,
-                    started_at: new Date().toISOString()
-                })
+            const data = await generateMockExam({
+                examType,
+                userId: user.id,
+                token: session.access_token,
             })
-            if (response.ok) {
-                const data = await response.json()
-                
-                setTimer(data.eng_module_time_limit)
-                // setTimer(6)
-                console.log(data.questions)
-                setQuestions(data.questions)
-                setExamId(data.exam_id)
-                setModule(1)
-                setCurrentIndex(0)
-                
-                console.log("fetching worked, showing some questions: " + data.questions[0].question_text)
-            }
+            
+            setTimer(data.eng_module_time_limit)
+            // setTimer(6)
+            console.log(data.questions)
+            setQuestions(data.questions)
+            setExamId(data.exam_id)
+            setModule(1)
+            setCurrentIndex(0)
+            
+            console.log("fetching worked, showing some questions: " + data.questions[0].question_text)
         } catch (error) {
             console.error("Error loading questions:", error)
             setTestState("error")
@@ -120,32 +108,15 @@ export default function EnglishTestPage() {
             setTestState("completed")
         }
 
-        const requestBody = {
-            exam_id: examId,
-            answers: userAnswer,
-            module: module
-        };
-        
-        // Add end time only for module 2
-        if (module === 2) {
-            requestBody.time_ended = new Date().toISOString();
-        }
-        
         try {
-            const response = await fetch(`${BACKEND_URL}/api/sat/submit_test/${'English'}/${module}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify(requestBody)
+            const data = await submitTestModule({
+                sectionType: 'English',
+                module,
+                examId,
+                answers: userAnswer,
+                timeEnded: module === 2 ? new Date().toISOString() : null,
+                token: session.access_token,
             })
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json()
             console.log("Submit response:", data)
 
             if (module === 1) {

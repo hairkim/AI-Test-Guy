@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import Select from 'react-select'
 import '../CSS/Leaderboard.css'
 import LeaderboardEntry from './LeaderboardEntry.jsx'
+import { getSurvivalLeaderboard } from '../../services/survivalService.js'
 
 export default function SurvivalLeaderboard() {
     const [section, setSection] = useState('Math')
@@ -16,13 +17,9 @@ export default function SurvivalLeaderboard() {
         }
         loadLeaderboard()
     }, [section, difficulty])
-
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_PORT
-
     const fetchLeaderboard = async () => {
         try {
-            const response = await fetch(`${BACKEND_URL}/api/survival/leaderboard?section=${section}&difficulty=${difficulty}&limit=20`)
-            const data = await response.json()
+            const data = await getSurvivalLeaderboard({ section, difficulty, limit: 20 })
             return data.leaderboard
         } catch (error) {
             console.error('Error fetching leaderboard:', error)

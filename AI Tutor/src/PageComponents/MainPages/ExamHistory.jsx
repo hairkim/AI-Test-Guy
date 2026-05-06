@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../ClientStuff/AuthContext.jsx";
 import ExamHistoryRow from "../SupportingComponents/ExamHistoryRow.jsx";
+import { getMockExamHistory } from "../../services/satService.js";
 import '../CSS/ExamHistory.css'
 
 export default function ExamHistory() {
 
     const { session } = useAuth();
-    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
     const [exams, setExams] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -18,14 +18,7 @@ export default function ExamHistory() {
     const fetchExams = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/history`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                }
-            });
-            const data = await response.json();
+            const data = await getMockExamHistory({ token: session.access_token });
             setExams(data);
         } catch (error) {
             console.error('Error fetching exams:', error);

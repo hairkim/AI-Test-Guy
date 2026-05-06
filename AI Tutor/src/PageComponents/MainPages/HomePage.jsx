@@ -7,6 +7,8 @@ import ScoreCircle from '../SupportingComponents/ExamCircle.jsx'
 import SchoolScroller from '../SupportingComponents/SchoolScroller.jsx'
 import SurvivalLeaderboard from '../SupportingComponents/Leaderboard.jsx'
 import { useProtectedNavigation } from '../../ClientStuff/UserProtectedNav.js'
+import { getMockExamHistory } from '../../services/satService.js'
+import { generateDailyTasks } from '../../services/dailyTaskService.js'
 
 export default function HomePage() {
     const { navigateWithAuth } = useProtectedNavigation()
@@ -34,7 +36,6 @@ export default function HomePage() {
 
     const [recentExams, setRecentExams] = useState(null)
     const [userTasks, setUserTasks] = useState([])
-    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
 
     useEffect(() => {
         const loadRecentExams = async () => {
@@ -64,19 +65,7 @@ export default function HomePage() {
 
     const fetchMostRecentExams = async () => {
         try {
-            const response = await fetch(`${BACKEND_URL}/api/sat/mock-exam/history`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                }
-            })
-    
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`)
-            }
-    
-            const allExams = await response.json()
+            const allExams = await getMockExamHistory({ token: session.access_token })
             
             // Filter for completed exams only, then get the most recent one
             const completedExams = allExams.filter(exam => exam.completed_at !== null)
@@ -99,19 +88,7 @@ export default function HomePage() {
 
     const fetchUserTasks = async () => {
         try {
-            const response = await fetch(`${BACKEND_URL}/api/daily/tasks/generate-daily`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                }
-            })
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`)
-            }
-
-            const tasks = await response.json()
+            const tasks = await generateDailyTasks({ token: session.access_token })
             console.log(tasks)
             return tasks.tasks
         } catch (error) {

@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import 'katex/dist/katex.min.css'
 import SubjectToggle from '../SupportingComponents/SubjectToggle.jsx';
 import StreamingMessage from '../MiscComponents/streaming';
+import { askEnglishTutor } from '../../services/tutorService.js';
 
 //PAGE FOR ENGLISH AI TUTOR GUY
 
@@ -16,9 +17,6 @@ export default function EnglishPage() {
     const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
     const chatContainerRef = useRef(null);
-
-    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
-
     // Check if user is near bottom
     const isNearBottom = () => {
         if (!chatContainerRef.current) return true;
@@ -69,40 +67,20 @@ export default function EnglishPage() {
       setError("");
 
       try {
-          const res = await fetch(`${BACKEND_URL}/ask_english`, {
-              method: "POST",
-              headers: {
-                  "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ question: currentQuestion, passage: passage ? passage : null }),
+          const data = await askEnglishTutor({ question: currentQuestion, passage });
+          const fullResponse = data.solution || "";
+
+          // Update the last conversation with the response
+          setChatHistory(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  response: fullResponse,
+                  status: 'streaming'
+              };
+              return updated;
           });
-
-        //   console.log("sending this data: " + JSON.stringify({ question: currentQuestion, passage: passage ? passage : null }));
-          const data = await res.json();
-
-          if (res.ok) {
-            const fullResponse = data.solution || "";
-
-            // Update the last conversation with the response
-            setChatHistory(prev => {
-                const updated = [...prev];
-                updated[updated.length - 1] = {
-                    ...updated[updated.length - 1],
-                    response: fullResponse,
-                    status: 'streaming'
-                };
-                return updated;
-            });
-            setError("");
-          } else {
-              // Mark as error
-              setChatHistory(prev => {
-                  const updated = [...prev];
-                  updated[updated.length - 1].status = 'error';
-                  return updated;
-              });
-              setError("Something went wrong.");
-          }
+          setError("");
       } catch (err) {
           // Mark as error
           setChatHistory(prev => {

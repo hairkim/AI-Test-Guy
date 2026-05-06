@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react'
 import '../CSS/MainPracticePage.css'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../ClientStuff/AuthContext'
+import { getRandomQuestions } from '../../services/satService'
 
 export default function MainPracticePage() {
     const navigate = useNavigate()
@@ -16,9 +17,6 @@ export default function MainPracticePage() {
     const [error, setError] = useState(null)
 
     const count = 20;
-
-    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
-
     useEffect(() => {
         if (questions.length === count && !isLoading) {
             // Pass questions and section to the practice page
@@ -43,20 +41,7 @@ export default function MainPracticePage() {
         setError(null)
         
         try {
-            // Use GET request with query parameters (matches your backend)
-            const response = await fetch(`${BACKEND_URL}/api/sat/questions/random?section=${section}&count=${count}`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${session.access_token}`
-                }
-            })
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`)
-            }
-
-            const data = await response.json()
+            const data = await getRandomQuestions({ section, count, token: session.access_token })
             setQuestions(data)
             setIsLoading(false)
         } catch (error) {

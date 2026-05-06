@@ -4,6 +4,7 @@ import SurvivalQuestion from '../SupportingComponents/SurvivalQuestion'
 import '../CSS/SurvivalModeQuestions.css'
 import { useAuth } from '../../ClientStuff/AuthContext'
 import GameOver from '../SupportingComponents/GameOver'
+import { getSurvivalQuestion, saveSurvivalSession } from '../../services/survivalService'
 
 export default function SurvivalModeQuestions() {
     const location = useLocation()
@@ -27,9 +28,6 @@ export default function SurvivalModeQuestions() {
     const [questionsAnswered, setQuestionsAnswered] = useState(0)
     const [questionsCorrect, setQuestionsCorrect] = useState(0)
     const [answers, setAnswers] = useState([])
-
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_PORT
-
     // Redirect if no section/difficulty provided
     useEffect(() => {
         if (!section || !difficulty) {
@@ -50,33 +48,21 @@ export default function SurvivalModeQuestions() {
         
         setLoading(true)
         try {
-            const response = await fetch(`${BACKEND_URL}/api/survival/question`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    difficulty: difficulty,
-                    section: section,
-                    excluded_question_ids: excludedQuestionIds
-                })
+            const question = await getSurvivalQuestion({
+                difficulty,
+                section,
+                excludedQuestionIds,
             })
-
-            if (!response.ok) {
-                if (response.status === 404) {
-                    alert('No more questions available!')
-                    navigate('/survival', { replace: true })
-                    return
-                }
-                throw new Error('Failed to fetch question')
-            }
-
-            const question = await response.json()
             setCurrentQuestion(question)
             setSelectedAnswer(null)
             setShowFeedback(false)
         } catch (error) {
             console.error('Error fetching question:', error)
+            if (error.message.includes('No more questions')) {
+                alert('No more questions available!')
+                navigate('/survival', { replace: true })
+                return
+            }
             alert('Error loading question. Please try again.')
         } finally {
             setLoading(false)
@@ -129,27 +115,18 @@ export default function SurvivalModeQuestions() {
             // Get user_id from your auth context or wherever you store it
             const userId = user.id
             
-            const response = await fetch(`${BACKEND_URL}/api/survival/session/save`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    difficulty: difficulty,
-                    section: section,
-                    questions_answered: questionsAnswered,
-                    questions_correct: questionsCorrect,
-                    question_ids: excludedQuestionIds,
-                    answers: answers,
-                    start_time: startingTime
-                })
+            const result = await saveSurvivalSession({
+                userId,
+                difficulty,
+                section,
+                questionsAnswered,
+                questionsCorrect,
+                questionIds: excludedQuestionIds,
+                answers,
+                startTime: startingTime,
             })
 
-            if (response.ok) {
-                const result = await response.json()
-                console.log('Session saved:', result)
-            }
+            console.log('Session saved:', result)
         } catch (error) {
             console.error('Error saving session:', error)
         }

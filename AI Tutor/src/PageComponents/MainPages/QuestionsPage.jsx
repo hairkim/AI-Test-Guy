@@ -7,6 +7,7 @@ import 'katex/dist/katex.min.css'
 import SubjectToggle from '../SupportingComponents/SubjectToggle.jsx';
 import StreamingMessage from '../MiscComponents/streaming';
 import DragAndDrop from '../SupportingComponents/DragAndDrop.jsx';
+import { askMathTutor } from '../../services/tutorService.js';
 
 export default function QuestionsPage() {
     const [question, setQuestion] = useState("");
@@ -18,9 +19,6 @@ export default function QuestionsPage() {
 
     const chatContainerRef = useRef(null);
     const lastScrollTop = useRef(0);
-
-    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
-
     // Handle scroll events - only track if user scrolled UP
     useEffect(() => {
         const container = chatContainerRef.current;
@@ -90,46 +88,24 @@ export default function QuestionsPage() {
         setError("");
 
         try {
-            const requestBody = {
-                question: currentQuestion || null,
-                image: currentImage || null
-            };
-
             console.log('Sending request with:', {
-                hasQuestion: !!requestBody.question,
-                hasImage: !!requestBody.image,
-                imageLength: requestBody.image?.length
+                hasQuestion: !!currentQuestion,
+                hasImage: !!currentImage,
+                imageLength: currentImage?.length
             });
 
-            const res = await fetch(`${BACKEND_URL}/ask`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(requestBody),
+            const data = await askMathTutor({ question: currentQuestion, image: currentImage });
+
+            setChatHistory(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                    ...updated[updated.length - 1],
+                    response: data.solution || "",
+                    status: 'streaming'
+                };
+                return updated;
             });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                setChatHistory(prev => {
-                    const updated = [...prev];
-                    updated[updated.length - 1] = {
-                        ...updated[updated.length - 1],
-                        response: data.solution || "",
-                        status: 'streaming'
-                    };
-                    return updated;
-                });
-                setError("");
-            } else {
-                setChatHistory(prev => {
-                    const updated = [...prev];
-                    updated[updated.length - 1].status = 'error';
-                    return updated;
-                });
-                setError(data.detail || "Something went wrong.");
-            }
+            setError("");
         } catch (err) {
             setChatHistory(prev => {
                 const updated = [...prev];

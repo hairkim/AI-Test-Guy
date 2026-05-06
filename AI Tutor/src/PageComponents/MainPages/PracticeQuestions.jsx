@@ -9,6 +9,7 @@ import rehypeKatex from 'rehype-katex'
 import StreamingMessage from '../MiscComponents/streaming.jsx'
 import 'katex/dist/katex.min.css'
 import '../CSS/QuestionsPage.css'
+import { askPracticeTutor, requestPracticeStep } from '../../services/practiceTutorService'
 
 //this is for practice questions (math or english)
 
@@ -49,9 +50,6 @@ export default function PracticeQuestions() {
             return updated;
         });
       };
-
-    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
-
     const submitPrompt = async () => {
         if (!userQuestion.trim() || !questions[currentIndex]) return;
 
@@ -59,24 +57,12 @@ export default function PracticeQuestions() {
         setError("");
 
         try {
-            const response = await fetch(`${BACKEND_URL}/api/practice-tutor/ask`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
-                body: JSON.stringify({
-                    question_id: questions[currentIndex].id,
-                    user_question: userQuestion,
-                    chat_history: chatHistory
-                })
+            const data = await askPracticeTutor({
+                questionId: questions[currentIndex].id,
+                userQuestion,
+                chatHistory,
+                token: session.access_token,
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
             
             // Add to chat history
             const newChatHistory = [
@@ -105,19 +91,11 @@ export default function PracticeQuestions() {
 
         setIsLoading(true);
         try {
-            const response = await fetch(`${BACKEND_URL}/api/practice-tutor/step`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
-                body: JSON.stringify({
-                    question_id: questions[currentIndex].id,
-                    step_requested: "hint"
-                })
+            const data = await requestPracticeStep({
+                questionId: questions[currentIndex].id,
+                stepRequested: "hint",
+                token: session.access_token,
             });
-
-            const data = await response.json();
             
             setChatHistory([
                 ...chatHistory,
@@ -147,20 +125,12 @@ export default function PracticeQuestions() {
 
         setIsLoading(true);
         try {
-            const response = await fetch(`${BACKEND_URL}/api/practice-tutor/step`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
-                body: JSON.stringify({
-                    question_id: currentQuestion.id,
-                    step_requested: "check_answer",
-                    user_attempt: selectedAnswer
-                })
+            const data = await requestPracticeStep({
+                questionId: currentQuestion.id,
+                stepRequested: "check_answer",
+                userAttempt: selectedAnswer,
+                token: session.access_token,
             });
-
-            const data = await response.json();
             
             setChatHistory([
                 ...chatHistory,
@@ -183,19 +153,11 @@ export default function PracticeQuestions() {
 
         setIsLoading(true);
         try {
-            const response = await fetch(`${BACKEND_URL}/api/practice-tutor/step`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
-                body: JSON.stringify({
-                    question_id: questions[currentIndex].id,
-                    step_requested: "explanation"
-                })
+            const data = await requestPracticeStep({
+                questionId: questions[currentIndex].id,
+                stepRequested: "explanation",
+                token: session.access_token,
             });
-
-            const data = await response.json();
             
             setChatHistory([
                 ...chatHistory,

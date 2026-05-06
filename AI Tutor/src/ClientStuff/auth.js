@@ -1,33 +1,18 @@
 import { supabase } from './SupabaseClient'
-
-const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
+import { syncUser } from '../services/userService'
 
 const createOrGetUser = async (authUser) => {
   if (!authUser) return null
   console.log("authUser: ", authUser)
 
   try {
-    // Call your backend to create/get user
-    const response = await fetch(`${BACKEND_URL}/api/users/sync`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        id: authUser.id, // Supabase UUID
-        name: authUser.user_metadata?.display_name,
-        email: authUser.email,
-        created_at: authUser.created_at,
-        picture_url: ""
-      })
+    const userData = await syncUser({
+      id: authUser.id,
+      name: authUser.user_metadata?.display_name,
+      email: authUser.email,
+      createdAt: authUser.created_at,
     })
 
-    if (!response.ok) {
-      console.error('❌ Error syncing user:', await response.text())
-      return null
-    }
-
-    const userData = await response.json()
     console.log('✅ User synced:', userData)
     return userData
 

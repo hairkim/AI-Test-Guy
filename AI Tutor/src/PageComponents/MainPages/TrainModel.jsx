@@ -1,12 +1,10 @@
 import { React, useState } from 'react';
+import { submitTrainingPdf } from '../../services/trainingService';
 
 export default function TrainModel() {
     const [pdf, setPdf] = useState(null)
     const [examName, setExamName] = useState("")
     const [response, setResponse] = useState("")
-
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_PORT
-
     const handleSubmit = async (e) => {
         setResponse("");
         e.preventDefault();
@@ -15,17 +13,8 @@ export default function TrainModel() {
           return;
         }
         
-        const formData = new FormData();
-        formData.append("pdf", pdf);
-        formData.append("exam_name", examName);
-    
         try {
-          const res = await fetch(`${BACKEND_URL}/submit_pdf`, {
-            method: "POST",
-            body: formData,
-          });
-    
-          const data = await res.json();
+          const data = await submitTrainingPdf({ pdf, examName });
           setResponse(data.message || "Success!");
         } catch (err) {
           console.error(err);

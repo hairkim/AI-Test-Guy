@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Shield, Target, TrendingUp } from 'lucide-react';
 import PropTypes from 'prop-types'
+import { getCollegeRecommendations } from '../../services/satService';
 
 function SchoolScroller({ previousScore }) {
     const [recommendations, setRecommendations] = useState(null);
     const [activeSection, setActiveSection] = useState('target');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
-    const BACKEND_URL = `${import.meta.env.VITE_BACKEND_PORT}`;
-    
     useEffect(() => {
         const fetchSchools = async () => {
             if (!previousScore) {
@@ -19,13 +17,7 @@ function SchoolScroller({ previousScore }) {
             
             try {
                 setLoading(true);
-                const response = await fetch(`${BACKEND_URL}/api/sat/colleges/recommendations/${previousScore}`);
-                
-                if (!response.ok) {
-                    throw new Error('Failed to fetch recommendations');
-                }
-                
-                const data = await response.json();
+                const data = await getCollegeRecommendations({ score: previousScore });
                 console.log(data);
                 setRecommendations(data);
             } catch (err) {
@@ -37,7 +29,7 @@ function SchoolScroller({ previousScore }) {
         };
         
         fetchSchools();
-    }, [previousScore, BACKEND_URL]);
+    }, [previousScore]);
 
     const sections = [
         {
