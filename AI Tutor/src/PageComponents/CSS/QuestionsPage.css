@@ -112,3 +112,18 @@
 .qpage_toggle_buttons {
   margin: 1rem;
 } 
+
+.error-message button {
+  margin-top: 0.75rem;
+  padding: 0.65rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: #f4881c;
+  color: #111;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.error-message button:hover {
+  background: #ff9f3d;
+}

@@ -152,3 +152,38 @@
     padding: 50px;
     font-size: 20px;
 }
+
+.survival-error-state {
+    max-width: 560px;
+    margin: 15vh auto 0;
+    padding: 2rem;
+    border: 1px solid #f4881c;
+    border-radius: 12px;
+    background: #fff7f0;
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.survival-error-state h2 {
+    margin-top: 0;
+}
+
+.survival-error-state p {
+    color: #555;
+    line-height: 1.5;
+}
+
+.survival-error-state button {
+    margin-top: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    border: none;
+    border-radius: 8px;
+    background: #f4881c;
+    color: #111;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.survival-error-state button:hover {
+    background: #ff9f3d;
+}
