@@ -12,8 +12,10 @@ export default function ExamHistory() {
     const [isLoading, setIsLoading] = useState(false);
     
     useEffect(() => {
-        fetchExams();
-    }, []);
+        if (session?.access_token) {
+            fetchExams();
+        }
+    }, [session?.access_token]);
     
     const fetchExams = async () => {
         setIsLoading(true);

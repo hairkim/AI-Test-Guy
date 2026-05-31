@@ -9,6 +9,7 @@ import {
     signUp,
     updateUser,
 } from '../services/authService';
+import { syncUser } from '../services/userService';
 
 const AuthContext = createContext({});
 
@@ -27,14 +28,25 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [userData, setUserData] = useState(null);
 
-    const fetchUserData = async (authUser) => {
+    const fetchUserData = async (authUser, token) => {
         if (!authUser?.email) {
             setUserData(null);
             return null;
         }
 
         try {
-            const user = await getUserByEmail(authUser.email);
+            let user = await getUserByEmail(authUser.email);
+
+            if (!user && token) {
+                user = await syncUser({
+                    id: authUser.id,
+                    name: authUser.user_metadata?.display_name,
+                    email: authUser.email,
+                    createdAt: authUser.created_at,
+                    token,
+                });
+            }
+
             setUserData(user);
             return user;
         } catch (error) {
@@ -67,7 +79,7 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
 
             if (currentSession?.user) {
-                fetchUserData(currentSession.user);
+                fetchUserData(currentSession.user, currentSession.access_token);
             }
         });
 
@@ -78,7 +90,7 @@ export const AuthProvider = ({ children }) => {
                 if (event === 'SIGNED_OUT') {
                     setUserData(null);
                 } else if (nextSession?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-                    fetchUserData(nextSession.user);
+                    fetchUserData(nextSession.user, nextSession.access_token);
                 }
 
                 setLoading(false);

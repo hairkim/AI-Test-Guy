@@ -54,7 +54,6 @@ export default function FullExamPage() {
             try {
                 const data = await generateMockExam({
                     examType,
-                    userId: user.id,
                     token: session.access_token,
                 })
                 console.log(data.questions)
@@ -73,12 +72,12 @@ export default function FullExamPage() {
             } catch (error) {
                 console.error("Error generating exam:", error)
                 setTestState("error")
-                setIsLoading(false)
+                return
             }
             finally {
-                setTestState("english1")
                 setIsLoading(false)
             }
+            setTestState("english1")
         }
     }
 

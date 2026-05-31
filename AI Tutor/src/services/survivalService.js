@@ -13,7 +13,6 @@ export const getSurvivalQuestion = ({ difficulty, section, excludedQuestionIds, 
 );
 
 export const saveSurvivalSession = ({
-    userId,
     difficulty,
     section,
     questionsAnswered,
@@ -21,11 +20,12 @@ export const saveSurvivalSession = ({
     questionIds,
     answers,
     startTime,
+    token,
 }) => (
     apiRequest('/api/survival/session/save', {
         method: 'POST',
+        token,
         body: {
-            user_id: userId,
             difficulty,
             section,
             questions_answered: questionsAnswered,

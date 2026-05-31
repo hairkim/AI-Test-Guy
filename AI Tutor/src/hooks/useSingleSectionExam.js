@@ -39,7 +39,6 @@ export function useSingleSectionExam({ examType, sectionType, moduleStatePrefix,
         try {
             const data = await generateMockExam({
                 examType,
-                userId: user.id,
                 token: session.access_token,
             });
 
@@ -66,7 +65,7 @@ export function useSingleSectionExam({ examType, sectionType, moduleStatePrefix,
 
     const handleTimeUp = () => {
         console.log('Time is up, submitting test');
-        // submitTest()
+        submitTest();
     };
 
     const onIntermissionEnd = () => {

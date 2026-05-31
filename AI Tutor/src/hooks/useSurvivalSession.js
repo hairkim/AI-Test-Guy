@@ -3,7 +3,7 @@ import { getSurvivalQuestion, saveSurvivalSession } from '../services/survivalSe
 
 const INITIAL_LIVES = 3;
 
-export function useSurvivalSession({ difficulty, section, userId }) {
+export function useSurvivalSession({ difficulty, section, token }) {
     const [lives, setLives] = useState(INITIAL_LIVES);
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [excludedQuestionIds, setExcludedQuestionIds] = useState([]);
@@ -23,11 +23,10 @@ export function useSurvivalSession({ difficulty, section, userId }) {
         finalQuestionsAnswered,
         finalQuestionsCorrect,
     }) => {
-        if (!userId || !startingTime) return;
+        if (!token || !startingTime) return;
 
         try {
             const result = await saveSurvivalSession({
-                userId,
                 difficulty,
                 section,
                 questionsAnswered: finalQuestionsAnswered,
@@ -35,6 +34,7 @@ export function useSurvivalSession({ difficulty, section, userId }) {
                 questionIds: finalExcludedQuestionIds,
                 answers: finalAnswers,
                 startTime: startingTime,
+                token,
             });
 
             console.log('Session saved:', result);
@@ -42,7 +42,7 @@ export function useSurvivalSession({ difficulty, section, userId }) {
             console.error('Error saving survival session:', err);
             setError('Could not save your survival session. You can go back and retry survival mode.');
         }
-    }, [difficulty, section, startingTime, userId]);
+    }, [difficulty, section, startingTime, token]);
 
     const fetchQuestion = useCallback(async () => {
         if (gameOver) return;

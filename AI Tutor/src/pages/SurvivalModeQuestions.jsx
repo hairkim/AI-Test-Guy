@@ -9,12 +9,12 @@ import '../PageComponents/CSS/SurvivalModeQuestions.css';
 export default function SurvivalModeQuestions() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { session } = useAuth();
     const { section, difficulty } = location.state || {};
     const survival = useSurvivalSession({
         difficulty,
         section,
-        userId: user?.id,
+        token: session?.access_token,
     });
 
     const handleRetry = () => {

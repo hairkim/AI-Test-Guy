@@ -16,10 +16,18 @@ const buildUrl = (path, queryParams) => {
 
 const parseResponse = async (response) => {
     const text = await response.text();
-    const data = text ? JSON.parse(text) : null;
+    let data = null;
+
+    if (text) {
+        try {
+            data = JSON.parse(text);
+        } catch {
+            data = null;
+        }
+    }
 
     if (!response.ok) {
-        const message = data?.detail || data?.message || `HTTP error! status: ${response.status}`;
+        const message = data?.detail || data?.message || text || `HTTP error! status: ${response.status}`;
         throw new Error(message);
     }
 

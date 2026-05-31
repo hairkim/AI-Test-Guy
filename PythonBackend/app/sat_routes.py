@@ -97,6 +97,7 @@ def get_random_questions(
 @sat_router.post("/mock-exam/generate", response_model=MockExamResponse)
 def generate_mock_exam(
     request: MockExamRequest,
+    user = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
     """Generate a complete mock exam with balanced question distribution"""
@@ -104,7 +105,7 @@ def generate_mock_exam(
     # Create the main exam record
     mock_exam = MockExam(
         exam_type=request.exam_type,
-        user_id=request.user_id,
+        user_id=user.id,
         started_at=datetime.now(timezone.utc),
         config={"difficulty_mix": request.difficulty_mix}
     )
@@ -170,31 +171,41 @@ def generate_mock_exam(
     )
 
 @sat_router.get("/mock-exam/history")
-def get_mock_exam_history(user: Any = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_mock_exam_history(user = Depends(get_current_user_db), db: Session = Depends(get_db)):
     """Get a user's mock exam history with sections, sorted by most recent"""
     from sqlalchemy.orm import joinedload
     
-    user_id = user.user.id
-    
     exams = db.query(MockExam)\
         .options(joinedload(MockExam.sections))\
-        .filter(MockExam.user_id == user_id)\
+        .filter(MockExam.user_id == user.id)\
         .order_by(MockExam.created_at.desc())\
         .all()
     
     return exams
 
 @sat_router.get("/mock-exam/{exam_id}", response_model=MockExamResponse)
-def get_mock_exam(exam_id: str, db: Session = Depends(get_db)):
+def get_mock_exam(
+    exam_id: str,
+    user = Depends(get_current_user_db),
+    db: Session = Depends(get_db)
+):
     """Retrieve an existing mock exam"""
     
     mock_exam = db.query(MockExam).filter(MockExam.id == exam_id).first()
     if not mock_exam:
         raise HTTPException(status_code=404, detail="Mock exam not found")
+    if mock_exam.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this exam")
     
-    # Get questions in order
+    starting_section = mock_exam.english_section or mock_exam.math_section
+    if not starting_section:
+        raise HTTPException(status_code=404, detail="No sections found for this exam")
+
     exam_questions = db.query(MockExamQuestion)\
-        .filter(MockExamQuestion.mock_exam_id == exam_id)\
+        .filter(
+            MockExamQuestion.section_id == starting_section.id,
+            MockExamQuestion.module_number == 1
+        )\
         .order_by(MockExamQuestion.question_order)\
         .all()
     
@@ -204,9 +215,11 @@ def get_mock_exam(exam_id: str, db: Session = Depends(get_db)):
     return MockExamResponse(
         exam_id=exam_id,
         exam_type=mock_exam.exam_type,
-        module=mock_exam.module,
+        sections=[section.section_type for section in mock_exam.sections],
+        section_type=starting_section.section_type,
+        module=1,
         module_questions=len(questions),
-        total_questions=exam.total_questions,
+        total_questions=sum(section.total for section in mock_exam.sections),
         questions=questions_to_response(questions, include_answers=False),
     )
 
@@ -264,11 +277,14 @@ def submit_test(
     section_type: str, 
     module_number: int, 
     request: SubmitTestRequest, 
+    user = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
     """Submit a module for a specific section"""
     # Validate and get exam data
     exam, section = get_exam_and_sections(db, request.exam_id, section_type)
+    if exam.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to submit this exam")
     
     # Score the module and update performance
     correct_count, module_results = score_module(
@@ -290,6 +306,7 @@ def get_section_module_questions_api(
     section_type: str, 
     module_number: int, 
     exam_id: str = Header(alias="X-Exam-ID"),
+    user = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
     """Get questions for a specific module of a section"""
@@ -297,6 +314,8 @@ def get_section_module_questions_api(
     exam = db.query(MockExam).filter(MockExam.id == exam_id).first()
     if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
+    if exam.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this exam")
     
     section = next((s for s in exam.sections if s.section_type == section_type), None)
     if not section:

@@ -37,6 +37,11 @@ export default function MainPracticePage() {
     }, [section])
 
     const fetchQuestions = async () => {
+        if (!session?.access_token) {
+            setError('Please sign in to load practice questions.');
+            return;
+        }
+
         setIsLoading(true)
         setError(null)
         

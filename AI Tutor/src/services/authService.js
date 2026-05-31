@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient';
 import { getProtectedUser, syncUser } from './userService';
 
-const createOrGetUser = async (authUser) => {
+const createOrGetUser = async (authUser, token) => {
     if (!authUser) return null;
 
     try {
@@ -10,6 +10,7 @@ const createOrGetUser = async (authUser) => {
             name: authUser.user_metadata?.display_name,
             email: authUser.email,
             createdAt: authUser.created_at,
+            token,
         });
     } catch (error) {
         console.error('Error syncing user:', error);
@@ -28,7 +29,9 @@ export const signUp = async (email, password, username) => {
         },
     });
 
-    const userData = data.user && !error ? await createOrGetUser(data.user) : null;
+    const userData = data.user && data.session?.access_token && !error
+        ? await createOrGetUser(data.user, data.session.access_token)
+        : null;
 
     return {
         data,
@@ -44,7 +47,9 @@ export const signIn = async (email, password) => {
         password,
     });
 
-    const userData = data.user && !error ? await createOrGetUser(data.user) : null;
+    const userData = data.user && data.session?.access_token && !error
+        ? await createOrGetUser(data.user, data.session.access_token)
+        : null;
 
     return {
         data,

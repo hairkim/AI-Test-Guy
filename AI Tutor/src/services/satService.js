@@ -7,13 +7,12 @@ export const getRandomQuestions = ({ section, count, difficulty, domain, token }
     })
 );
 
-export const generateMockExam = ({ examType, userId, token }) => (
+export const generateMockExam = ({ examType, token }) => (
     apiRequest('/api/sat/mock-exam/generate', {
         method: 'POST',
         token,
         body: {
             exam_type: examType,
-            user_id: userId,
             started_at: new Date().toISOString(),
         },
     })
