@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import './PageComponents/CSS/App.css'
 import TrainModel from './pages/TrainModel.jsx'
-import HomePage from './pages/HomePage.jsx'
+// import HomePage from './pages/HomePage.jsx'
 import HomePageV2 from './pages/HomePageV2.jsx'
 import Login from './pages/Login.jsx'
 import Signup from './pages/SignupPage.jsx'
@@ -27,7 +27,7 @@ const App = () => {
     <Router>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<HomePageV2 />} />
           <Route path="/login" element={<Login />} />
           <Route path='/signup' element={<Signup />} />
           <Route path="/profile" element={<Profile />} />
@@ -42,7 +42,7 @@ const App = () => {
           <Route path='/placeholder' element={<SchoolScroller/> } />
           <Route path="/survival" element={<SurvivalMode/> } />
           <Route path='/survival/questions' element={<SurvivalModeQuestions/> } />
-          <Route path='/home' element={ <HomePage /> }/>
+          {/* <Route path='/home' element={ <HomePage /> }/> */}
           <Route path='/homeV2' element={ <HomePageV2 /> }/>
         </Routes>
       </AuthProvider>

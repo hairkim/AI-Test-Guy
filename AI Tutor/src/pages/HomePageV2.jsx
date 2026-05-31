@@ -6,48 +6,43 @@ import {
     Flame,
     GraduationCap,
     History,
+    Menu,
     MessageCircleQuestion,
     PenLine,
     Trophy,
+    UserCircle,
+    X,
 } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useProtectedNavigation } from '../hooks/useProtectedNavigation.js';
 import '../PageComponents/CSS/HomePageV2.css';
 
-const toolCards = [
+const sidebarLinks = [
     {
-        title: 'Practice Exams',
-        description: 'Run full SAT-style sections and build timing discipline before test day.',
+        label: 'Practice Exam',
         route: '/take_a_test',
-        cta: 'Start an exam',
         Icon: ClipboardList,
     },
     {
-        title: 'Practice Questions',
-        description: 'Target math, reading, and writing skills with focused question sets.',
+        label: 'Practice Question',
         route: '/practice',
-        cta: 'Drill skills',
         Icon: PenLine,
     },
     {
-        title: 'Survival Mode',
-        description: 'Answer under pressure and keep your streak alive through harder rounds.',
+        label: 'Survival Mode',
         route: '/survival',
-        cta: 'Enter survival',
         Icon: Flame,
     },
     {
-        title: 'Ask TutorGuy',
-        description: 'Get guided help, explanations, and next-step coaching when you are stuck.',
+        label: 'Ask TutorGuy',
         route: '/query',
-        cta: 'Ask a question',
         Icon: MessageCircleQuestion,
     },
     {
-        title: 'Exam History',
-        description: 'Review past exams, spot score trends, and decide what to practice next.',
+        label: 'Exam History',
         route: '/exam_history',
-        cta: 'Review scores',
         Icon: History,
     },
 ];
@@ -60,24 +55,65 @@ const studySteps = [
 ];
 
 export default function HomePageV2() {
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const navigate = useNavigate();
     const { navigateWithAuth } = useProtectedNavigation();
     const { user } = useAuth();
     const displayName = user?.user_metadata?.display_name || 'there';
+    const closeSidebar = () => setIsSidebarOpen(false);
+    const handleSidebarNavigation = (route) => {
+        closeSidebar();
+        navigateWithAuth(route);
+    };
 
     return (
         <main className="home-v2-page">
             <header className="home-v2-header">
-                <button className="home-v2-brand" onClick={() => navigateWithAuth('/homeV2')}>
-                    <GraduationCap size={24} aria-hidden="true" />
-                    <span>TutorGuy SAT</span>
+                <div className="home-v2-header-left">
+                    <button
+                        className="home-v2-sidebar-toggle"
+                        aria-label={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+                        aria-expanded={isSidebarOpen}
+                        onClick={() => setIsSidebarOpen((current) => !current)}
+                    >
+                        {isSidebarOpen ? <X size={23} aria-hidden="true" /> : <Menu size={23} aria-hidden="true" />}
+                    </button>
+                    <button className="home-v2-brand" onClick={() => navigateWithAuth('/homeV2')}>
+                        <GraduationCap size={24} aria-hidden="true" />
+                        <span>TutorGuy SAT</span>
+                    </button>
+                </div>
+                <button className="home-v2-profile-button" onClick={() => navigate('/profile')}>
+                    <UserCircle size={24} aria-hidden="true" />
+                    <span>Profile</span>
                 </button>
-                <nav className="home-v2-nav" aria-label="SAT tools">
-                    <button onClick={() => navigateWithAuth('/take_a_test')}>Exams</button>
-                    <button onClick={() => navigateWithAuth('/practice')}>Practice</button>
-                    <button onClick={() => navigateWithAuth('/query')}>TutorGuy</button>
-                    <button onClick={() => navigateWithAuth('/exam_history')}>History</button>
-                </nav>
             </header>
+
+            {isSidebarOpen && (
+                <button
+                    className="home-v2-sidebar-scrim"
+                    aria-label="Close sidebar"
+                    onClick={closeSidebar}
+                />
+            )}
+
+            <aside className={`home-v2-sidebar ${isSidebarOpen ? 'is-open' : ''}`} aria-label="SAT navigation">
+                <div className="home-v2-sidebar-header">
+                    <span>Study tools</span>
+                    <button aria-label="Close sidebar" onClick={closeSidebar}>
+                        <X size={20} aria-hidden="true" />
+                    </button>
+                </div>
+                <nav className="home-v2-sidebar-nav">
+                    {sidebarLinks.map(({ label, route, Icon }) => (
+                        <button key={label} onClick={() => handleSidebarNavigation(route)}>
+                            <Icon size={20} aria-hidden="true" />
+                            <span>{label}</span>
+                            <ArrowRight size={16} aria-hidden="true" />
+                        </button>
+                    ))}
+                </nav>
+            </aside>
 
             <section className="home-v2-hero">
                 <div className="home-v2-hero-copy">
@@ -117,28 +153,6 @@ export default function HomePageV2() {
                 </aside>
             </section>
 
-            <section className="home-v2-tool-section" aria-labelledby="home-v2-tools-title">
-                <div className="home-v2-section-heading">
-                    <p className="home-v2-kicker">Choose your next move</p>
-                    <h2 id="home-v2-tools-title">SAT tools</h2>
-                </div>
-                <div className="home-v2-tools-grid">
-                    {toolCards.map(({ title, description, route, cta, Icon }) => (
-                        <article className="home-v2-tool-card" key={title}>
-                            <div className="home-v2-tool-icon">
-                                <Icon size={24} aria-hidden="true" />
-                            </div>
-                            <h3>{title}</h3>
-                            <p>{description}</p>
-                            <button onClick={() => navigateWithAuth(route)}>
-                                {cta}
-                                <ArrowRight size={17} aria-hidden="true" />
-                            </button>
-                        </article>
-                    ))}
-                </div>
-            </section>
-
             <section className="home-v2-bottom-band" aria-label="Study guidance">
                 <div className="home-v2-guidance">
                     <BrainCircuit size={28} aria-hidden="true" />
@@ -163,6 +177,14 @@ export default function HomePageV2() {
                     </div>
                 </div>
             </section>
+
+            <button
+                className="home-v2-chatbot-button"
+                aria-label="Ask TutorGuy"
+                onClick={() => navigate('/query')}
+            >
+                <MessageCircleQuestion size={28} aria-hidden="true" />
+            </button>
         </main>
     );
 }
