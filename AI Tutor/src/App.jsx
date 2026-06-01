@@ -2,7 +2,8 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import './PageComponents/CSS/App.css'
 import TrainModel from './pages/TrainModel.jsx'
 // import HomePage from './pages/HomePage.jsx'
-import HomePageV2 from './pages/HomePageV2.jsx'
+import HomePageV2 from './dev_pages/HomePageV2.jsx'
+import HomeV3 from './dev_pages/HomeV3.jsx'
 import Login from './pages/Login.jsx'
 import Signup from './pages/SignupPage.jsx'
 import Profile from './pages/Profile.jsx'
@@ -44,6 +45,7 @@ const App = () => {
           <Route path='/survival/questions' element={<SurvivalModeQuestions/> } />
           {/* <Route path='/home' element={ <HomePage /> }/> */}
           <Route path='/homeV2' element={ <HomePageV2 /> }/>
+          <Route path='/homeV3' element={ <HomeV3 /> }/>
         </Routes>
       </AuthProvider>
     </Router>
