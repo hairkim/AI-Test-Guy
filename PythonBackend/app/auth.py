@@ -5,6 +5,7 @@ import jwt
 import os
 import uuid
 from pydantic import BaseModel
+from typing import Optional
 from sqlalchemy.orm import Session
 from .database import get_db
 from .models import User
@@ -20,8 +21,8 @@ user_router = APIRouter(prefix="/api/users", tags=["Users"])
 
 class UserSyncRequest(BaseModel):
     id: str  # UUID from Supabase
-    name: str
-    email: str
+    name: Optional[str] = None
+    email: Optional[str] = None
     picture_url: str = None
     created_at: datetime
 
@@ -35,18 +36,28 @@ def get_current_user(token: str = Depends(security)):
 
 
 @user_router.post("/sync")
-def sync_user(request: UserSyncRequest, db: Session = Depends(get_db)):
+def sync_user(
+    request: UserSyncRequest,
+    auth_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Create or update user in local database from Supabase auth"""
     
-    user_uuid = uuid.UUID(request.id)
+    user_uuid = uuid.UUID(auth_user.user.id)
+    user_email = auth_user.user.email
+    user_name = (
+        auth_user.user.user_metadata.get("display_name")
+        if auth_user.user.user_metadata
+        else None
+    ) or request.name or user_email
     
     # Try to get existing user
     user = db.query(User).filter(User.id == user_uuid).first()
     
     if user:
         # Update existing user info
-        user.name = request.name
-        user.email = request.email
+        user.name = user_name
+        user.email = user_email
         user.picture_url = request.picture_url
         
         print(f"✅ Updated existing user: {user.email}")
@@ -54,8 +65,8 @@ def sync_user(request: UserSyncRequest, db: Session = Depends(get_db)):
         # Create new user
         user = User(
             id=user_uuid,
-            name=request.name,
-            email=request.email,
+            name=user_name,
+            email=user_email,
             picture_url=request.picture_url,
             created_at=request.created_at,
             level=1,
@@ -101,4 +112,3 @@ def get_current_user_db(token: str = Depends(security), db: Session = Depends(ge
     except Exception as e:
         print(f"Auth error: {e}")
         raise HTTPException(status_code=401, detail="Invalid token")
-

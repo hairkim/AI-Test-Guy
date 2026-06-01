@@ -72,6 +72,7 @@ def get_survival_question(
 @survival_router.post("/session/save")
 def save_survival_session(
     request: SaveSurvivalSessionRequest,
+    user = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
     """
@@ -79,21 +80,43 @@ def save_survival_session(
     Frontend sends all the data accumulated during the session.
     """
     
-    # Verify user exists (optional but recommended)
-    user = db.query(User).filter(User.id == request.user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    question_ids = [answer.get("question_id") for answer in request.answers if answer.get("question_id")]
+    questions = db.query(SATQuestion).filter(SATQuestion.id.in_(question_ids)).all()
+    question_by_id = {question.id: question for question in questions}
+
+    validated_answers = []
+    questions_correct = 0
+
+    for answer in request.answers:
+        question_id = answer.get("question_id")
+        question = question_by_id.get(question_id)
+        if not question:
+            continue
+
+        user_answer = answer.get("user_answer")
+        is_correct = user_answer == question.correct_answer
+        if is_correct:
+            questions_correct += 1
+
+        validated_answers.append({
+            "question_id": question_id,
+            "user_answer": user_answer,
+            "correct_answer": question.correct_answer,
+            "is_correct": is_correct,
+        })
+
+    questions_answered = len(validated_answers)
     
     # Create session record
     session = SurvivalSession(
-        user_id=request.user_id,
+        user_id=user.id,
         difficulty=request.difficulty,
         section=request.section,
         domain=request.domain,
-        questions_answered=request.questions_answered,
-        questions_correct=request.questions_correct,
-        question_ids=request.question_ids,
-        answers=request.answers,
+        questions_answered=questions_answered,
+        questions_correct=questions_correct,
+        question_ids=[answer["question_id"] for answer in validated_answers],
+        answers=validated_answers,
         started_at=request.start_time,
         ended_at=datetime.now(timezone.utc)
     )

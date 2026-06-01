@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import SATQuestion, User, QuestionAttempt
-from app.auth import get_current_user
+from app.auth import get_current_user, get_current_user_db
 from app.practice_tutor import PracticeTutorRequest, PracticeTutorResponse, StepByStepRequest, StepByStepResponse
 from app.practice_tutor import PracticeQuestionTutor
 import os
@@ -46,7 +46,7 @@ async def ask_practice_tutor(
 @practice_tutor_router.post("/step", response_model=StepByStepResponse)
 async def get_step_by_step(
     request: StepByStepRequest,
-    user=Depends(get_current_user),
+    user=Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
     """
@@ -89,7 +89,7 @@ async def get_step_by_step(
 @practice_tutor_router.get("/question-context/{question_id}")
 async def get_question_context(
     question_id: str,
-    user=Depends(get_current_user),
+    user=Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
     """

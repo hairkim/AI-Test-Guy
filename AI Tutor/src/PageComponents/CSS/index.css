@@ -4,14 +4,14 @@
   font-weight: 400;
 
   color-scheme: light dark;
-  color: black;
+  color: white;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  background: #f5d4bf;
+  background: #0d0f14;
 }
 
 a {
@@ -30,12 +30,12 @@ html, body {
   /* place-items: center; */
   min-width: 320px;
   min-height: 100vh;
-  background: linear-gradient(
+  /* background: linear-gradient(
     to bottom,
     hsl(23, 73%, 85%) 0%,
     #facdaf 70%,
     #f5d4bf 100%
-  );
+  ); */
 }
 
 h1 {

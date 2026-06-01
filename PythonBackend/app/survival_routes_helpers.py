@@ -18,7 +18,6 @@ class SurvivalQuestionResponse(BaseModel):
 
 
 class SaveSurvivalSessionRequest(BaseModel):
-    user_id: str
     difficulty: str
     section: str
     domain: Optional[str] = None
